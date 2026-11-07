@@ -275,10 +275,13 @@ rankings = get_rankings()
 try:
     graph_stats = get_graph_statistics()
     database_online = True
-except Exception:
+except Exception as exc:
     graph_stats = None
     database_online = False
-
+    print(
+        f"Neo4j connection error: {type(exc).__name__}: {exc}",
+        flush=True
+    )
 
 # -----------------------------------------------------------------------------
 # Sidebar and navigation — custom layout, real Streamlit controls.
