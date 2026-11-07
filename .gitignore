@@ -1,0 +1,29 @@
+# API keys and credentials
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*credentials*
+*Credentials*
+*.pem
+
+# Python environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local files
+outputs/
+Backup_Old_Code/
+*.bak
+*.backup
+*.log
+*.zip
+
+# Temporary scripts
+diagnose_*.py
+test_aura_file.py
+test_auradb.py
+migrate_local_to_aura.py
