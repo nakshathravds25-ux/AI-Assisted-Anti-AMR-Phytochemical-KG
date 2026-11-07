@@ -1,0 +1,138 @@
+﻿Rank_Among_137_Mapped,Compound_ID,Compound,Evidence_Coverage,V3_Heuristic_Score,Activity_Grade,Target_Grade,Specificity_Proxy,Unique_Publications_Provisional,Pathogen_Publications,Target_Publications,Unique_Pathogen_Records,Pathogen_Links,Target_Links,Synergy_Relationships,Caution_Flags_Count,Caution_Flags,Interpretation,Rank_Among_137_Mapped
+1,CMP011,Eugenol,Both evidence types,78.91,0.847,0.86,0.35,9,6,3,7,7,4,5,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,1
+2,CMP094,Isoliquiritin,Both evidence types,77.34,0.9,1.0,0.8,1,1,1,2,2,1,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,2
+3,CMP036,Kaempferol,Both evidence types,76.81,0.847,0.776,0.35,8,3,5,5,5,6,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,3
+4,CMP077,Cinnamaldehyde,Both evidence types,75.8,0.82,0.72,0.41,6,4,3,5,5,4,3,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,4
+5,CMP084,Thymol,Both evidence types,75.69,0.9,1.0,0.35,3,2,1,3,3,1,3,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,5
+6,CMP072,Piperine,Both evidence types,75.41,0.9,1.0,0.35,4,2,3,2,2,3,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,6
+7,CMP140,Caffeic acid,Both evidence types,75.29,0.82,1.0,0.35,3,2,1,4,4,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,7
+8,CMP006,Curcumin,Both evidence types,74.5,0.9,0.86,0.35,7,2,5,2,2,5,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,8
+9,CMP035,Quercetin,Both evidence types,73.78,0.847,0.655,0.35,14,3,12,5,5,13,4,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,9
+10,CMP105,Plumbagin,Both evidence types,73.72,0.847,0.86,0.35,5,3,2,3,3,2,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,10
+11,CMP112,Galangin,Both evidence types,73.69,0.9,1.0,0.35,3,2,1,2,2,1,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,11
+12,CMP110,Baicalein,Both evidence types,73.58,0.9,0.743,0.35,6,3,3,3,3,4,3,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,12
+13,CMP014,Apigenin,Both evidence types,72.75,0.9,0.79,0.35,6,2,4,2,2,5,2,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,13
+14,CMP085,Carvacrol,Both evidence types,71.59,0.847,0.567,0.35,9,6,3,6,6,3,4,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,14
+15,CMP045,Ellagic acid,Both evidence types,70.67,0.74,1.0,0.65,2,1,1,1,1,1,0,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,15
+16,CMP238,Imperatorin,Both evidence types,70.67,0.74,1.0,0.65,2,1,1,1,1,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,16
+17,CMP081,Thymoquinone,Both evidence types,70.51,0.74,0.86,0.35,5,3,3,3,3,4,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,17
+18,CMP089,Epigallocatechin gallate,Both evidence types,70.12,0.9,0.685,0.35,6,2,4,2,2,5,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,18
+19,CMP134,Caryophyllene oxide,Both evidence types,69.47,0.9,1.0,0.35,2,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,19
+20,CMP237,Genistein,Both evidence types,69.47,0.9,1.0,0.35,2,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,20
+21,CMP092,Isoliquiritigenin,Both evidence types,68.94,0.9,0.65,0.65,3,1,2,1,1,2,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,21
+22,CMP029,Oleanolic acid,Both evidence types,68.89,0.74,1.0,0.35,3,2,1,2,2,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,22
+23,CMP021,Allicin,Both evidence types,68.47,0.9,0.72,0.65,2,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,23
+24,CMP236,Taxifolin,Both evidence types,68.36,0.74,0.79,0.5,4,2,2,2,2,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,24
+25,CMP012,Ursolic acid,Both evidence types,68.23,0.74,0.825,0.35,4,3,2,3,3,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,25
+26,CMP088,Epicatechin gallate,Both evidence types,68.19,0.9,0.86,0.35,3,1,3,1,1,3,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,26
+27,CMP069,Emodin,Both evidence types,67.79,0.82,0.86,0.35,3,2,2,2,2,2,1,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,27
+28,CMP030,6-Gingerol,Both evidence types,67.64,0.74,0.79,0.65,3,1,2,1,1,3,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,28
+29,CMP199,Isoquercitrin,Both evidence types,67.64,0.74,0.79,0.65,3,1,2,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,29
+30,CMP016,Berberine,Both evidence types,66.92,0.9,0.557,0.35,6,2,4,2,2,4,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,30
+31,CMP028,Gallic acid,Both evidence types,66.89,0.74,1.0,0.35,3,1,2,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,31
+32,CMP333,Embelin,Both evidence types,66.67,0.74,1.0,0.35,2,1,1,2,2,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,32
+33,CMP050,Corilagin,Both evidence types,66.34,0.9,1.0,0.35,1,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,33
+34,CMP062,Withaferin A,Both evidence types,66.34,0.9,1.0,0.35,1,1,1,1,1,1,1,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,34
+35,CMP101,"1,8-Cineole",Both evidence types,65.32,0.847,0.58,0.35,4,3,1,3,3,1,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,35
+36,CMP040,Andrographolide,Both evidence types,64.97,0.9,0.58,0.65,2,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,36
+37,CMP038,Rutin,Both evidence types,64.9,0.74,0.508,0.65,6,1,5,1,1,5,0,2,NOT VERIFIED; RECHECK,Research-priority heuristic; not antimicrobial efficacy or clinical probability,37
+38,CMP285,Fisetin,Both evidence types,64.67,0.74,1.0,0.35,2,1,1,1,1,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,38
+39,CMP214,Hyperoside,Both evidence types,64.67,0.74,1.0,0.35,2,1,1,1,1,1,0,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,39
+40,CMP102,alpha-Pinene,Both evidence types,64.67,0.74,1.0,0.35,2,1,1,1,1,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,40
+41,CMP008,Bisdemethoxycurcumin,Both evidence types,64.22,0.9,0.79,0.35,2,1,2,1,1,2,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,41
+42,CMP007,Demethoxycurcumin,Both evidence types,64.22,0.9,0.79,0.35,2,1,2,1,1,2,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,42
+43,CMP037,Chlorogenic acid,Both evidence types,63.5,0.62,0.516,0.65,7,2,5,2,2,6,0,1,RECHECK,Research-priority heuristic; not antimicrobial efficacy or clinical probability,43
+44,CMP125,Myricetin,Both evidence types,63.19,0.9,0.58,0.35,3,2,1,2,2,1,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,44
+45,CMP053,Punicalagin,Both evidence types,62.39,0.74,0.58,0.65,3,1,2,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,45
+46,CMP015,Luteolin,Both evidence types,61.2,0.74,0.6,0.35,6,1,5,1,1,6,0,1,RECHECK,Research-priority heuristic; not antimicrobial efficacy or clinical probability,46
+47,CMP059,Asiatic acid,Both evidence types,60.66,0.82,0.575,0.35,3,2,2,2,2,2,1,2,NOT INDEPENDENTLY; PROVISIONAL,Research-priority heuristic; not antimicrobial efficacy or clinical probability,47
+48,CMP024,Diallyl disulfide,Both evidence types,60.17,0.74,0.58,0.65,2,1,1,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,48
+49,CMP023,Diallyl sulfide,Both evidence types,60.17,0.74,0.58,0.65,2,1,1,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,49
+50,CMP086,Epicatechin,Both evidence types,57.78,0.74,0.567,0.35,4,1,3,1,1,3,0,2,NOT INDEPENDENTLY; UNVERIFIED,Research-priority heuristic; not antimicrobial efficacy or clinical probability,50
+51,CMP218,Quercitrin,Both evidence types,57.26,0.74,0.615,0.35,3,1,2,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,51
+52,CMP052,Ethyl gallate,Both evidence types,56.97,0.9,0.5,0.35,2,1,1,1,1,2,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,52
+53,CMP013,Rosmarinic acid,Both evidence types,55.84,0.9,0.58,0.35,1,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,53
+54,CMP141,Maslinic acid,Both evidence types,54.54,0.74,0.72,0.35,1,1,1,1,1,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,54
+55,CMP245,quercetin 3-O-glucuronide,Both evidence types,54.54,0.74,0.72,0.35,1,1,1,1,1,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,55
+56,CMP033,6-Shogaol,Both evidence types,53.47,0.9,0.12,0.65,2,1,1,1,1,1,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,56
+57,CMP099,p-Cymene,Both evidence types,48.67,0.74,0.12,0.65,2,1,1,1,1,1,0,1,PUBLICATION_ID_UNRESOLVED,Research-priority heuristic; not antimicrobial efficacy or clinical probability,57
+58,CMP283,"1,4-Naphthoquinone",Pathogen evidence only,47.34,0.9,0.0,0.65,1,1,0,1,1,0,1,1,STRAIN-DEPENDENT,Research-priority heuristic; not antimicrobial efficacy or clinical probability,58
+59,CMP093,Liquiritigenin,Pathogen evidence only,47.34,0.9,0.0,0.65,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,59
+60,CMP162,Limonene,Pathogen evidence only,46.47,0.9,0.0,0.35,2,2,0,2,2,0,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,60
+61,CMP080,Linalool,Both evidence types,44.89,0.74,0.12,0.35,3,1,2,1,1,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,61
+62,CMP181,Estragole,Pathogen evidence only,44.54,0.74,0.0,0.35,1,1,0,5,5,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,62
+63,CMP271,Carnosic acid,Pathogen evidence only,44.09,0.68,0.0,0.35,3,3,0,3,3,0,2,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,63
+64,CMP224,Palmitoleic acid,Pathogen evidence only,44.07,0.82,0.0,0.35,2,2,0,2,2,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,64
+65,CMP068,Aloe-emodin,Both evidence types,43.97,0.4,0.58,0.35,2,1,1,1,1,1,0,1,CONFLICT,Research-priority heuristic; not antimicrobial efficacy or clinical probability,65
+66,CMP356,1'-Acetoxychavicol acetate,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,66
+67,CMP187,Ferulic acid,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,67
+68,CMP091,Glabridin,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,68
+69,CMP108,Lupeol,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,69
+70,CMP183,Myrtenol,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,70
+71,CMP111,Stigmasterol,Pathogen evidence only,42.54,0.74,0.0,0.65,1,1,0,1,1,0,0,2,PUBLICATION_ID_UNRESOLVED; WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,71
+72,CMP176,Citral,Pathogen evidence only,41.67,0.74,0.0,0.35,2,2,0,2,2,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,72
+73,CMP153,Linoleic acid,Pathogen evidence only,41.67,0.74,0.0,0.35,2,2,0,2,2,0,0,1,ASSAY-DEPENDENT,Research-priority heuristic; not antimicrobial efficacy or clinical probability,73
+74,CMP185,Farnesol,Pathogen evidence only,41.34,0.9,0.0,0.35,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,74
+75,CMP090,Glycyrrhizin,Pathogen evidence only,41.34,0.9,0.0,0.35,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,75
+76,CMP190,Lauric acid,Pathogen evidence only,41.34,0.9,0.0,0.35,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,76
+77,CMP113,Mangiferin,Pathogen evidence only,41.34,0.9,0.0,0.35,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,77
+78,CMP273,Shikimic acid,Pathogen evidence only,41.34,0.9,0.0,0.35,1,1,0,1,1,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,78
+79,CMP150,"3,4-Dihydroxybenzoic acid",Pathogen evidence only,40.54,0.74,0.0,0.35,1,1,0,3,3,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,79
+80,CMP449,Aromadendrene,Pathogen evidence only,38.54,0.74,0.0,0.35,1,1,0,2,2,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,80
+81,CMP241,Aromadendrin,Pathogen evidence only,38.54,0.74,0.0,0.35,1,1,0,2,2,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,81
+82,CMP272,Carnosol,Pathogen evidence only,36.57,0.57,0.0,0.35,2,2,0,2,2,0,1,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,82
+83,CMP121,Alizarin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,83
+84,CMP168,Ascorbic acid,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,84
+85,CMP194,Betulinic acid,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,85
+86,CMP070,Chrysophanol,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,PENDING,Research-priority heuristic; not antimicrobial efficacy or clinical probability,86
+87,CMP231,Diosgenin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,87
+88,CMP109,Friedelin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,88
+89,CMP439,Geraniol,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,89
+90,CMP389,Hinokinin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,90
+91,CMP158,Karanjin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,PENDING,Research-priority heuristic; not antimicrobial efficacy or clinical probability,91
+92,CMP443,Linolenic acid,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,92
+93,CMP163,Myristic acid,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,93
+94,CMP149,Nerolidol,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,94
+95,CMP152,Oleic acid,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,ASSAY-DEPENDENT,Research-priority heuristic; not antimicrobial efficacy or clinical probability,95
+96,CMP123,Physcion,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,NOT INDEPENDENTLY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,96
+97,CMP351,Purpurin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,97
+98,CMP426,Rapanone,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,98
+99,CMP259,Rhein,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,99
+100,CMP120,Scopoletin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,100
+101,CMP082,Thymohydroquinone,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,101
+102,CMP200,Vanillin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,102
+103,CMP201,alpha-Amyrin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,103
+104,CMP189,beta-Amyrin,Pathogen evidence only,36.54,0.74,0.0,0.35,1,1,0,1,1,0,0,1,PROVISIONAL,Research-priority heuristic; not antimicrobial efficacy or clinical probability,104
+105,CMP135,3-Carene,Pathogen evidence only,32.34,0.4,0.0,0.65,1,1,0,1,1,0,0,1,STRAIN-DEPENDENT,Research-priority heuristic; not antimicrobial efficacy or clinical probability,105
+106,CMP137,Chrysoeriol,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,106
+107,CMP078,Cinnamic acid,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,107
+108,CMP157,Conessine,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,108
+109,CMP458,Jatrorrhizine,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,109
+110,CMP444,Nerol,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,110
+111,CMP394,Phyllanthin,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,111
+112,CMP115,Reserpine,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,112
+113,CMP369,boeravinone B,Target evidence only,30.34,0.0,1.0,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,113
+114,CMP055,Catechin,Target evidence only,28.22,0.0,0.79,0.0,2,0,2,0,0,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,114
+115,CMP142,Astragalin,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,115
+116,CMP421,Oleanonic acid,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,2,PENDING; PROVISIONAL,Research-priority heuristic; not antimicrobial efficacy or clinical probability,116
+117,CMP242,Scoparone,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,1,PROVISIONAL,Research-priority heuristic; not antimicrobial efficacy or clinical probability,117
+118,CMP230,Syringic acid,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,118
+119,CMP118,Vanillic acid,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,119
+120,CMP131,alpha-Terpineol,Pathogen evidence only,26.34,0.4,0.0,0.35,1,1,0,1,1,0,0,1,WEAK POTENCY,Research-priority heuristic; not antimicrobial efficacy or clinical probability,120
+121,CMP414,Galangin 3-methyl ether,Target evidence only,23.34,0.0,0.72,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,121
+122,CMP143,Isorhamnetin,Target evidence only,23.34,0.0,0.72,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,122
+123,CMP027,beta-Caryophyllene,Target evidence only,22.47,0.0,0.56,0.0,2,0,2,0,0,3,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,123
+124,CMP198,Daucosterol,Target evidence only,21.59,0.0,0.65,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,124
+125,CMP049,Chebulinic acid,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,125
+126,CMP079,Coumarin,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,126
+127,CMP042,Deoxyandrographolide,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,127
+128,CMP087,Epigallocatechin,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,128
+129,CMP041,Neoandrographolide,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,129
+130,CMP096,Palmatine,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,1,RECHECK,Research-priority heuristic; not antimicrobial efficacy or clinical probability,130
+131,CMP104,Silibinin,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,131
+132,CMP034,Zingerone,Target evidence only,19.84,0.0,0.58,0.0,1,0,1,0,0,2,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,132
+133,CMP095,Berbamine,Target evidence only,8.34,0.0,0.12,0.0,1,0,1,0,0,1,0,1,NOT VERIFIED,Research-priority heuristic; not antimicrobial efficacy or clinical probability,133
+134,CMP017,Magnoflorine,Target evidence only,8.34,0.0,0.12,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,134
+135,CMP103,beta-Pinene,Target evidence only,8.34,0.0,0.12,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,135
+136,CMP051,beta-Sitosterol,Target evidence only,8.34,0.0,0.12,0.0,1,0,1,0,0,1,0,0,,Research-priority heuristic; not antimicrobial efficacy or clinical probability,136
+137,CMP100,gamma-Terpinene,Target evidence only,8.34,0.0,0.12,0.0,1,0,1,0,0,1,0,1,PUBLICATION_ID_UNRESOLVED,Research-priority heuristic; not antimicrobial efficacy or clinical probability,137
