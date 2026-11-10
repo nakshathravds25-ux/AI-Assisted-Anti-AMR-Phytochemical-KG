@@ -1,13 +1,16 @@
-"""Light botanical knowledge-graph visualization for PhytoGraph Research Atlas.
+"""PhytoGraph network visualizations.
 
-Read-only Neo4j retrieval. Compatible with the original build_html_graph()
-API, and adds an in-memory build_graph_html() API for cloud-safe Streamlit.
+Read-only Neo4j retrieval for compound-centred and full knowledge-graph views.
+The original build_html_graph() and build_graph_html() APIs are preserved.
+Tooltip content is plain text to avoid raw HTML appearing in vis-network.
 """
 
 from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+import re
+from typing import Iterable
 
 from dotenv import load_dotenv
 from pyvis.network import Network
@@ -36,10 +39,11 @@ NODE_NAME_FIELDS = {
     "Target": "Target_Name",
     "Pathogen": "Organism",
 }
+ALLOWED_NODE_TYPES = ("Plant", "Compound", "Target", "Pathogen")
 
 
 def get_compound_graph(compound_id: str, max_plants: int = 20):
-    """Read a compound-centered neighborhood from Neo4j without mutation."""
+    """Read a compound-centred neighbourhood from Neo4j without mutation."""
     query = """
     MATCH (c:Compound {Compound_ID: $compound_id})
     CALL (c) {
@@ -69,6 +73,121 @@ def get_compound_graph(compound_id: str, max_plants: int = 20):
             return dict(record) if record is not None else None
 
 
+def get_graph_relationship_types() -> list[str]:
+    """Return relationship types present in the four-entity knowledge graph."""
+    query = """
+    MATCH (a)-[r]->(b)
+    WHERE any(label IN labels(a) WHERE label IN $allowed_labels)
+      AND any(label IN labels(b) WHERE label IN $allowed_labels)
+    RETURN DISTINCT type(r) AS relationship_type
+    ORDER BY relationship_type
+    """
+    with get_driver() as driver:
+        with driver.session(database=DATABASE) as session:
+            return [
+                record["relationship_type"]
+                for record in session.run(
+                    query, allowed_labels=list(ALLOWED_NODE_TYPES)
+                )
+            ]
+
+
+def get_graph_relationship_type_counts() -> dict[str, int]:
+    """Return exact relationship counts for the four-entity graph."""
+    query = """
+    MATCH (a)-[r]->(b)
+    WHERE any(label IN labels(a) WHERE label IN $allowed_labels)
+      AND any(label IN labels(b) WHERE label IN $allowed_labels)
+    RETURN type(r) AS relationship_type, count(r) AS relationship_count
+    ORDER BY relationship_type
+    """
+    with get_driver() as driver:
+        with driver.session(database=DATABASE) as session:
+            return {
+                str(record["relationship_type"]): int(record["relationship_count"])
+                for record in session.run(
+                    query, allowed_labels=list(ALLOWED_NODE_TYPES)
+                )
+            }
+
+
+def get_compound_options() -> list[dict[str, str]]:
+    """Return all registered compounds, not only the ranked subset."""
+    query = """
+    MATCH (c:Compound)
+    WHERE c.Compound_ID IS NOT NULL
+    RETURN c.Compound_ID AS compound_id,
+           coalesce(c.Compound_Name, c.Name, c.name, c.Compound_ID) AS compound_name
+    ORDER BY compound_name
+    """
+    with get_driver() as driver:
+        with driver.session(database=DATABASE) as session:
+            return [
+                {
+                    "compound_id": str(record["compound_id"]),
+                    "compound_name": str(record["compound_name"] or record["compound_id"]),
+                }
+                for record in session.run(query)
+            ]
+
+
+def get_full_graph(
+    node_types: Iterable[str] | None = None,
+    relationship_types: Iterable[str] | None = None,
+    max_relationships: int = 10000,
+) -> dict:
+    """Read selected graph nodes and relationships without changing Neo4j."""
+    selected_nodes = [
+        kind for kind in (node_types or ALLOWED_NODE_TYPES)
+        if kind in ALLOWED_NODE_TYPES
+    ]
+    if not selected_nodes:
+        selected_nodes = list(ALLOWED_NODE_TYPES)
+    selected_relationships = list(relationship_types or [])
+
+    node_query = """
+    MATCH (n)
+    WHERE any(label IN labels(n) WHERE label IN $allowed_labels)
+    RETURN labels(n) AS labels,
+           properties(n) AS node,
+           elementId(n) AS element_id
+    """
+    edge_query = """
+    MATCH (a)-[r]->(b)
+    WHERE any(label IN labels(a) WHERE label IN $allowed_labels)
+      AND any(label IN labels(b) WHERE label IN $allowed_labels)
+      AND (size($relationship_types) = 0 OR type(r) IN $relationship_types)
+    RETURN labels(a) AS source_labels,
+           properties(a) AS source_node,
+           elementId(a) AS source_element_id,
+           type(r) AS relationship_type,
+           properties(r) AS relationship,
+           elementId(r) AS relationship_element_id,
+           labels(b) AS target_labels,
+           properties(b) AS target_node,
+           elementId(b) AS target_element_id
+    LIMIT $max_relationships
+    """
+    with get_driver() as driver:
+        with driver.session(database=DATABASE) as session:
+            nodes = [
+                dict(record)
+                for record in session.run(
+                    node_query, allowed_labels=selected_nodes
+                )
+            ]
+            edges = [
+                dict(record)
+                for record in session.run(
+                    edge_query,
+                    allowed_labels=selected_nodes,
+                    relationship_types=selected_relationships,
+                    max_relationships=max(1, int(max_relationships)),
+                )
+            ]
+    return {"nodes": nodes, "edges": edges}
+
+
 def _node_style(kind: str, *, center: bool = False) -> dict:
     palette = COLORS[kind]
     return {
@@ -85,29 +204,117 @@ def _node_style(kind: str, *, center: bool = False) -> dict:
     }
 
 
-def _tooltip(node_type: str, node_name: str, node_id: str) -> str:
-    return (
-        '<div style="font-family:Arial,sans-serif;font-size:12px;line-height:1.7">'
-        f'<b>{escape(node_type)}</b><br>{escape(node_name)}<br>'
-        f'ID: {escape(str(node_id))}</div>'
+def _clean_text(value, max_length: int = 260) -> str:
+    """Make database values safe and readable in plain-text tooltips."""
+    if value is None or str(value).strip() == "":
+        return "Not recorded"
+    text = " ".join(str(value).replace("\x00", "").split())
+    if len(text) > max_length:
+        text = text[: max_length - 1].rstrip() + "…"
+    return text
+
+
+def _tooltip(
+    node_type: str,
+    node_name: str,
+    node_id: str,
+    node: dict | None = None,
+) -> str:
+    """Readable plain-text node details; only show fields relevant to that entity."""
+    node = node or {}
+    field_map = {
+        "Plant": [
+            ("Common name", "Common_Name"),
+            ("Source", "Source"),
+        ],
+        "Compound": [
+            ("PubChem CID", "PubChem_CID"),
+            ("Molecular formula", "Molecular_Formula"),
+            ("Molecular weight", "Molecular_Weight"),
+            ("Source", "Source"),
+        ],
+        "Target": [
+            ("Gene", "Gene"),
+            ("Organism", "Organism"),
+            ("Target family", "Target_Family"),
+            ("Target role", "Target_Role"),
+            ("UniProt ID", "UniProt_ID"),
+            ("PDB ID", "PDB_ID"),
+            ("Source", "Source"),
+        ],
+        "Pathogen": [
+            ("Resistance phenotype", "Resistance_Phenotype"),
+            ("WHO category", "WHO_Category"),
+            ("NCBI taxonomy ID", "NCBI_Taxonomy_ID"),
+            ("Source", "Source"),
+        ],
+    }
+    parts = [
+        f"{node_type}: {_clean_text(node_name, 160)}",
+        f"ID: {_clean_text(node_id, 80)}",
+    ]
+    for label, field in field_map.get(node_type, []):
+        value = node.get(field)
+        if value is not None and str(value).strip():
+            parts.append(f"{label}: {_clean_text(value, 180)}")
+    return "  |  ".join(parts)
+
+
+def _friendly_relationship(edge_type: str, rel: dict | None = None) -> str:
+    rel = rel or {}
+    specific = (
+        rel.get("Activity_Type")
+        or rel.get("Relationship_Type")
+        or rel.get("Interaction_Type")
     )
+    if specific:
+        return _clean_text(str(specific).replace("_", " ").title(), 90)
+
+    names = {
+        "CONTAINS_COMPOUND": "Plant → compound occurrence",
+        "INTERACTS_WITH_TARGET": "Compound → molecular target evidence",
+        "ACTS_AGAINST_PATHOGEN": "Compound → pathogen evidence",
+        "ASSOCIATED_WITH_TARGET": "Pathogen → resistance-associated target",
+    }
+    return names.get(edge_type, edge_type.replace("_", " ").title())
 
 
 def _edge_tooltip(edge_type: str, rel: dict) -> str:
-    fields = (
-        ("Relationship", edge_type),
+    """Readable relationship details for the evidence fields used in the dataset."""
+    source = (
+        rel.get("Source_DOI_or_PMID")
+        or rel.get("Evidence_Source_URL")
+        or rel.get("Source_URL")
+        or rel.get("Source")
+        or rel.get("DOI")
+        or rel.get("PMID")
+    )
+    fields = [
+        ("Relationship", _friendly_relationship(edge_type, rel)),
+        ("Relationship type", edge_type.replace("_", " ").title()),
         ("Link ID", rel.get("Link_ID")),
-        ("Evidence", rel.get("Evidence_Type")),
+        ("Evidence level", rel.get("Evidence_Level")),
+        ("Evidence type", rel.get("Evidence_Type")),
+        ("Evidence category", rel.get("Biological_Evidence_Category")),
+        ("Evidence audit status", rel.get("Evidence_Audit_Status")),
+        ("Interaction type", rel.get("Interaction_Type")),
         ("Activity", rel.get("Activity_Type")),
-        ("Category", rel.get("Biological_Evidence_Category")),
+        ("Mechanism", rel.get("Mechanism")),
+        ("Experimental method", rel.get("Experimental_Method")),
+        ("Plant part", rel.get("Plant_Part")),
+        ("Tested strain", rel.get("Tested_Strain_Context") or rel.get("Strain_Context")),
+        ("MIC", " ".join(str(v) for v in (rel.get("MIC"), rel.get("MIC_Unit")) if v)),
+        ("Antibiotic / substrate", rel.get("Antibiotic_or_Substrate")),
+        ("AMR relevance", rel.get("AMR_Relevance")),
         ("Finding", rel.get("Finding")),
-        ("Source", rel.get("Source_URL")),
-    )
-    html = ''.join(
-        f'<div><strong>{escape(label)}:</strong> {escape(str(value) if value is not None else "Not recorded")}</div>'
-        for label, value in fields
-    )
-    return '<div style="max-width:380px;font-family:Arial,sans-serif;font-size:12px;line-height:1.65">' + html + '</div>'
+        ("Evidence notes", rel.get("Evidence_Notes")),
+        ("Source", source),
+    ]
+    parts = []
+    for label, value in fields:
+        if value is not None and str(value).strip():
+            parts.append(f"{label}: {_clean_text(value, 240)}")
+    return "  |  ".join(parts)
 
 
 def _legend_html(counts: dict) -> str:
@@ -117,7 +324,7 @@ def _legend_html(counts: dict) -> str:
         ("Target", "Targets"),
         ("Pathogen", "Pathogens"),
     )
-    entries = ''.join(
+    entries = "".join(
         '<span class="pg-legend-line">'
         f'<span class="pg-legend-circle" style="background:{COLORS[k]["background"]};border-color:{COLORS[k]["border"]}"></span>'
         f'{escape(label)} <small>{counts.get(k, 0)}</small></span>'
@@ -126,37 +333,227 @@ def _legend_html(counts: dict) -> str:
     return f'<aside class="pg-legend"><strong>NETWORK LEGEND</strong>{entries}</aside>'
 
 
-def _wrap_html(html: str, counts: dict) -> str:
+def _wrap_html(html: str, counts: dict, *, full_graph: bool = False) -> str:
     css = """
     <style>
       html,body { margin:0!important; padding:0!important; background:#FAFCF9!important; color:#1F3F31; }
-      body { position:relative; font-family:Arial,sans-serif; }
-      #mynetwork { border:1px solid #DEE9DC!important; border-radius:16px!important;
-        background: radial-gradient(circle at 50% 50%,#FFF,#F9FCF8)!important;
+      body { position:relative; font-family:Arial,sans-serif; overflow:hidden; }
+      #mynetwork { position:relative; z-index:1; border:1px solid #DEE9DC!important; border-radius:16px!important;
+        background:radial-gradient(circle at 50% 50%,#FFF,#F9FCF8)!important;
         overflow:hidden!important; }
       .pg-legend { position:absolute; top:18px; left:20px; z-index:5; display:flex; gap:11px; flex-direction:column;
-        min-width:125px; padding:15px 15px; border:1px solid #E1EAE0; border-radius:13px;
-        background:rgba(255,255,255,.95); box-shadow:0 6px 25px rgba(29,73,46,.06); pointer-events:none; }
+        min-width:125px; padding:15px; border:1px solid #E1EAE0; border-radius:13px;
+        background:rgba(255,255,255,.96); box-shadow:0 6px 25px rgba(29,73,46,.06); pointer-events:none; }
       .pg-legend strong { color:#627D6D; letter-spacing:.12em; font-size:9px; margin-bottom:4px; }
       .pg-legend-line { display:flex; align-items:center; gap:8px; color:#476253; font-size:11px; font-weight:600; }
-      .pg-legend-line small { margin-left:auto; color:#9BB0A2; font-size:10px; }
+      .pg-legend-line small { margin-left:auto; color:#789181; font-size:10px; }
       .pg-legend-circle { display:inline-block; width:10px; height:10px; border-radius:50%; border:2px solid; }
-      .pg-hint { position:absolute; z-index:5; bottom:16px; right:19px; border-radius:100px;
-        background:rgba(255,255,255,.94); border:1px solid #E1EAE0; color:#718677;
+      .pg-hint { position:absolute; z-index:5; bottom:42px; right:19px; border-radius:100px;
+        background:rgba(255,255,255,.96); border:1px solid #E1EAE0; color:#536F5E;
         padding:8px 12px; font-size:10px; pointer-events:none; }
+      .pg-note { position:absolute; z-index:5; bottom:10px; left:19px; max-width:70%;
+        border-radius:9px; background:rgba(255,255,255,.94); border:1px solid #E1EAE0;
+        color:#718677; padding:7px 10px; font-size:10px; pointer-events:none; }
       .vis-tooltip { border:1px solid #D5E4D7!important; border-radius:11px!important; background:#FFFFFF!important;
         color:#284D39!important; box-shadow:0 12px 30px rgba(28,64,40,.09)!important; padding:12px!important;
-        max-width:400px; white-space:normal!important; overflow-wrap:anywhere; }
-      @media(max-width:600px){ .pg-legend { top:9px;left:9px; padding:10px; min-width:105px; }
-        .pg-hint { left:9px;right:auto;bottom:9px; } }
+        max-width:440px; white-space:normal!important; overflow-wrap:anywhere; }
+      .pg-search { position:absolute; z-index:50; top:18px; right:20px; width:min(330px, calc(100% - 180px));
+        box-sizing:border-box; padding:12px; border:1px solid #DCE8DD; border-radius:13px;
+        background:rgba(255,255,255,.97); box-shadow:0 6px 25px rgba(29,73,46,.08); }
+      .pg-search-label { display:block; margin:0 0 7px; color:#627D6D; font-size:9px;
+        font-weight:700; letter-spacing:.12em; }
+      .pg-search-row { display:flex; gap:6px; }
+      .pg-search input { min-width:0; flex:1; box-sizing:border-box; border:1px solid #D8E4D9;
+        border-radius:8px; padding:8px 9px; color:#284D39; background:#fff; font-size:12px; outline:none; }
+      .pg-search input:focus { border-color:#6F9B7D; box-shadow:0 0 0 2px rgba(111,155,125,.13); }
+      .pg-search button { border:1px solid #D5E3D7; border-radius:8px; padding:7px 10px;
+        background:#F4F8F3; color:#315B43; font-size:11px; font-weight:600; cursor:pointer; }
+      .pg-search button:hover { background:#E8F1E7; }
+      .pg-search-actions { display:flex; align-items:center; gap:6px; margin-top:6px; }
+      .pg-search-status { flex:1; color:#718677; font-size:10px; line-height:1.35; }
+      @media(max-width:600px) {
+        .pg-legend { top:9px;left:9px;padding:10px;min-width:105px; }
+        .pg-search { top:9px;right:9px;width:min(270px, calc(100% - 145px));padding:8px; }
+        .pg-search button { padding:7px 8px; }
+        .pg-hint { left:9px;right:auto;bottom:42px; }
+        .pg-note { left:9px;bottom:8px;max-width:90%; }
+      }
     </style>
     """
-    overlay = _legend_html(counts) + '<div class="pg-hint">Scroll to zoom · drag to explore · hover for evidence</div>'
-    return html.replace('</head>', css + '</head>', 1).replace('<body>', '<body>' + overlay, 1)
+    hint = (
+        "Hover over a connection for its evidence details"
+        if full_graph
+        else "Scroll to zoom · drag to explore · hover for evidence"
+    )
+    search_panel = '''
+      <div class="pg-search">
+        <label class="pg-search-label" for="pg-node-search">FIND A NODE</label>
+        <div class="pg-search-row">
+          <input id="pg-node-search" type="search" placeholder="Name, organism, target or ID" autocomplete="off">
+          <button id="pg-node-find" type="button">Find</button>
+        </div>
+        <div class="pg-search-actions">
+          <span id="pg-search-status" class="pg-search-status" aria-live="polite">Search the nodes currently shown</span>
+          <button id="pg-node-next" type="button">Next</button>
+          <button id="pg-node-clear" type="button">Clear</button>
+        </div>
+      </div>
+    '''
+    overlay = (
+        _legend_html(counts)
+        + search_panel
+        + f'<div class="pg-hint">{hint}</div>'
+        + '<div class="pg-note">Node positions and edge lengths are visual layout only; they do not represent biological distance or interaction strength.</div>'
+    )
+    search_script = r'''
+    <script>
+    (function () {
+      const input = document.getElementById("pg-node-search");
+      const findButton = document.getElementById("pg-node-find");
+      const nextButton = document.getElementById("pg-node-next");
+      const clearButton = document.getElementById("pg-node-clear");
+      const status = document.getElementById("pg-search-status");
+      if (!input || !findButton || !nextButton || !clearButton || !status) return;
+
+      let matches = [];
+      let matchIndex = 0;
+
+      function getNodeStore() {
+        return (typeof network !== "undefined" && network && network.body && network.body.data)
+          ? network.body.data.nodes : null;
+      }
+
+      function focusMatch() {
+        if (!matches.length || typeof network === "undefined" || !network) return;
+        const item = matches[matchIndex];
+        network.selectNodes([item.id], true);
+        network.focus(item.id, {
+          scale: 1.35,
+          animation: { duration: 550, easingFunction: "easeInOutQuad" }
+        });
+        status.textContent = "Match " + (matchIndex + 1) + " of " + matches.length +
+          ": " + (item.label || item.id);
+      }
+
+      function findMatches() {
+        const query = input.value.trim().toLowerCase();
+        const store = getNodeStore();
+        if (!store) {
+          status.textContent = "Graph is still loading. Try again in a moment.";
+          return;
+        }
+        if (!query) {
+          status.textContent = "Enter a name or ID to search.";
+          return;
+        }
+        matches = store.get().filter(function (item) {
+          const searchable = [item.label, item.title, item.id, item.group]
+            .filter(Boolean).join(" ").toLowerCase();
+          return searchable.includes(query);
+        });
+        matchIndex = 0;
+        if (!matches.length) {
+          network.unselectAll();
+          status.textContent = "No matches in the currently displayed graph.";
+          return;
+        }
+        focusMatch();
+      }
+
+      findButton.addEventListener("click", findMatches);
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") findMatches();
+      });
+      nextButton.addEventListener("click", function () {
+        if (!matches.length) return;
+        matchIndex = (matchIndex + 1) % matches.length;
+        focusMatch();
+      });
+      clearButton.addEventListener("click", function () {
+        input.value = "";
+        matches = [];
+        matchIndex = 0;
+        if (typeof network !== "undefined" && network) network.unselectAll();
+        status.textContent = "Search the nodes currently shown";
+      });
+
+      if (typeof network !== "undefined" && network && typeof network.once === "function") {
+        network.once("stabilizationIterationsDone", function () {
+          network.setOptions({ physics: { enabled: false } });
+        });
+      }
+    })();
+    </script>
+    '''
+    html = re.sub(
+        r"</head\s*>",
+        lambda match: css + match.group(0),
+        html,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    body_match = re.search(r"<body\b[^>]*>", html, flags=re.IGNORECASE)
+    if body_match:
+        html = html[:body_match.end()] + overlay + html[body_match.end():]
+    else:
+        html = html.replace("</html>", overlay + "</html>", 1)
+
+    body_end = re.search(r"</body\s*>", html, flags=re.IGNORECASE)
+    if body_end:
+        html = html[:body_end.start()] + search_script + html[body_end.start():]
+    else:
+        html += search_script
+    return html
+
+
+def _configure_network(net: Network, *, full_graph: bool = False):
+    if full_graph:
+        options = r"""
+        {
+          "interaction": {
+            "hover": true, "tooltipDelay": 180, "dragNodes": true,
+            "hideEdgesOnDrag": false, "zoomView": true, "dragView": true,
+            "navigationButtons": true, "keyboard": {"enabled": true}
+          },
+          "nodes": {"shape":"dot","font":{"color":"#2F5040","size":10,"face":"Arial"}},
+          "edges": {
+            "smooth":{"enabled":true,"type":"continuous","roundness":0.08},
+            "selectionWidth":2, "color":{"inherit":false},
+            "font":{"size":8,"face":"Arial","color":"#52695B","background":"rgba(255,255,255,0.75)"}
+          },
+          "physics": {
+            "enabled":true,"solver":"barnesHut",
+            "barnesHut":{"gravitationalConstant":-9000,"centralGravity":0.12,"springLength":85,"springConstant":0.025,"damping":0.18,"avoidOverlap":0.35},
+            "stabilization":{"enabled":true,"iterations":220,"updateInterval":30}
+          }
+        }
+        """
+    else:
+        options = r"""
+        {
+          "interaction": {
+            "hover": true, "tooltipDelay": 180, "dragNodes": true,
+            "hideEdgesOnDrag": false, "zoomView": true, "dragView": true,
+            "navigationButtons": true, "keyboard": {"enabled": true}
+          },
+          "nodes": {"shape":"dot","font":{"color":"#2F5040","size":14,"face":"Arial"}},
+          "edges": {
+            "smooth":{"enabled":true,"type":"continuous","roundness":0.15},
+            "selectionWidth":2,
+            "font":{"size":10,"face":"Arial","color":"#52695B","background":"rgba(255,255,255,0.9)","strokeWidth":0}
+          },
+          "physics": {
+            "enabled":true,"solver":"barnesHut",
+            "barnesHut":{"gravitationalConstant":-4500,"centralGravity":0.14,"springLength":155,"springConstant":0.04,"damping":0.14,"avoidOverlap":0.45},
+            "stabilization":{"enabled":true,"iterations":180,"updateInterval":25}
+          }
+        }
+        """
+    net.set_options(options)
 
 
 def build_graph_html(compound_id: str, max_plants: int = 20) -> str | None:
-    """Return a self-contained HTML graph for st.components.v1.html."""
+    """Return a self-contained HTML graph for a selected compound."""
     result = get_compound_graph(compound_id, max_plants=max_plants)
     if result is None:
         return None
@@ -171,11 +568,11 @@ def build_graph_html(compound_id: str, max_plants: int = 20) -> str | None:
     name = str(center.get("Compound_Name") or compound_id)
     net.add_node(
         center_id,
-        label=name[:26] + ("..." if len(name) > 26 else ""),
-        title=_tooltip("Compound", name, str(compound_id)),
-        shape="dot", size=34, color=_node_style("Compound", center=True),
+        label=name[:30] + ("..." if len(name) > 30 else ""),
+        title=_tooltip("Compound", name, str(compound_id), center),
+        shape="dot", size=36, color=_node_style("Compound", center=True),
         borderWidth=3,
-        font={"color":"#234936","size":17,"face":"Arial","bold":True,"strokeWidth":3,"strokeColor":"#FAFCF9"},
+        font={"color":"#234936","size":18,"face":"Arial","bold":True,"strokeWidth":3,"strokeColor":"#FAFCF9"},
     )
 
     sections = (
@@ -203,12 +600,12 @@ def build_graph_html(compound_id: str, max_plants: int = 20) -> str | None:
             if graph_id not in node_seen:
                 node_seen.add(graph_id)
                 counts[kind] += 1
-                label = node_name[:23] + ("..." if len(node_name) > 23 else "")
+                label = node_name[:27] + ("..." if len(node_name) > 27 else "")
                 net.add_node(
-                    graph_id, label=label, title=_tooltip(kind, node_name, str(node_id)),
-                    shape="dot", size=19 if kind != "Plant" else 17,
+                    graph_id, label=label, title=_tooltip(kind, node_name, str(node_id), node),
+                    shape="dot", size=20 if kind != "Plant" else 18,
                     color=_node_style(kind), borderWidth=2,
-                    font={"color":"#456052","size":12,"face":"Arial","strokeWidth":3,"strokeColor":"#FAFCF9"},
+                    font={"color":"#456052","size":14,"face":"Arial","strokeWidth":3,"strokeColor":"#FAFCF9"},
                 )
             source, target = (graph_id, center_id) if incoming else (center_id, graph_id)
             key = (source, target, str(rel.get("Link_ID") or ""), edge_type)
@@ -216,35 +613,149 @@ def build_graph_html(compound_id: str, max_plants: int = 20) -> str | None:
                 continue
             edge_seen.add(key)
             net.add_edge(
-                source, target, title=_edge_tooltip(edge_type, rel), arrows="to",
-                color={"color":"#B9CFC0","highlight":"#56836E","hover":"#56836E"},
-                width=1.35,
+                source, target,
+                title=_edge_tooltip(edge_type, rel),
+                label=_friendly_relationship(edge_type, rel),
+                arrows="to",
+                color={"color":"#779A83","highlight":"#285C49","hover":"#285C49"},
+                width=2.2,
+                font={"size":10,"align":"middle","background":"rgba(255,255,255,0.9)"},
             )
 
-    net.set_options(r'''
-    {
-      "interaction": {
-        "hover": true, "tooltipDelay": 160, "dragNodes": true,
-        "hideEdgesOnDrag": false, "zoomView": true, "dragView": true,
-        "navigationButtons": true, "keyboard": {"enabled": true}
-      },
-      "nodes": {"shape":"dot","font":{"color":"#2F5040","size":12,"face":"Arial"}},
-      "edges": {
-        "smooth":{"enabled":true,"type":"continuous","roundness":0.15},
-        "selectionWidth":2
-      },
-      "physics": {
-        "enabled":true,"solver":"barnesHut",
-        "barnesHut":{"gravitationalConstant":-4500,"centralGravity":0.14,"springLength":155,"springConstant":0.04,"damping":0.14,"avoidOverlap":0.45},
-        "stabilization":{"enabled":true,"iterations":180,"updateInterval":25}
-      }
-    }
-    ''')
-    return _wrap_html(net.generate_html(), counts)
+    _configure_network(net, full_graph=False)
+    return _wrap_html(net.generate_html(), counts, full_graph=False)
+
+
+def _kind_from_labels(labels) -> str | None:
+    for kind in ALLOWED_NODE_TYPES:
+        if kind in (labels or []):
+            return kind
+    return None
+
+
+def _node_graph_id(kind: str, node: dict, element_id: str | None = None) -> str:
+    node_id = node.get(NODE_ID_FIELDS[kind])
+    if node_id is None:
+        node_id = element_id or node.get("id") or node.get("ID")
+    return f"{kind}:{node_id}"
+
+
+def _node_display_name(kind: str, node: dict) -> str:
+    return str(
+        node.get(NODE_NAME_FIELDS[kind])
+        or node.get("Name")
+        or node.get("name")
+        or node.get(NODE_ID_FIELDS[kind])
+        or kind
+    )
+
+
+def build_full_graph_html(
+    node_types: Iterable[str] | None = None,
+    relationship_types: Iterable[str] | None = None,
+    max_relationships: int = 10000,
+    show_edge_labels: bool = False,
+) -> str | None:
+    """Return the full four-entity knowledge graph as self-contained HTML.
+
+    Optional filters can be supplied by the Streamlit interface. By default,
+    all four entity types and all relationships are included.
+    """
+    selected_nodes = [
+        kind for kind in (node_types or ALLOWED_NODE_TYPES)
+        if kind in ALLOWED_NODE_TYPES
+    ]
+    if not selected_nodes:
+        selected_nodes = list(ALLOWED_NODE_TYPES)
+
+    graph = get_full_graph(
+        node_types=selected_nodes,
+        relationship_types=relationship_types,
+        max_relationships=max_relationships,
+    )
+    if not graph["nodes"]:
+        return None
+
+    net = Network(
+        height="760px", width="100%", bgcolor="#FAFCF9",
+        font_color="#2F5040", directed=True, cdn_resources="in_line",
+    )
+    counts = {kind: 0 for kind in ALLOWED_NODE_TYPES}
+    node_seen = set()
+
+    for item in graph["nodes"]:
+        kind = _kind_from_labels(item.get("labels"))
+        node = item.get("node") or {}
+        if kind is None or not isinstance(node, dict):
+            continue
+
+        graph_id = _node_graph_id(kind, node, item.get("element_id"))
+        if graph_id in node_seen:
+            continue
+        node_seen.add(graph_id)
+        counts[kind] += 1
+
+        name = _node_display_name(kind, node)
+        label = name[:22] + ("..." if len(name) > 22 else "")
+        node_id = node.get(NODE_ID_FIELDS[kind]) or item.get("element_id") or ""
+        net.add_node(
+            graph_id,
+            label=label,
+            title=_tooltip(kind, name, str(node_id), node),
+            shape="dot",
+            size={"Plant": 11, "Compound": 13, "Target": 12, "Pathogen": 12}[kind],
+            color=_node_style(kind),
+            borderWidth=1.5,
+            group=kind,
+            font={"color":"#3E5A4B","size":10,"face":"Arial","strokeWidth":2,"strokeColor":"#FAFCF9"},
+        )
+
+    edge_seen = set()
+    for item in graph["edges"]:
+        source_kind = _kind_from_labels(item.get("source_labels"))
+        target_kind = _kind_from_labels(item.get("target_labels"))
+        source_node = item.get("source_node") or {}
+        target_node = item.get("target_node") or {}
+        if not source_kind or not target_kind:
+            continue
+
+        source_id = _node_graph_id(source_kind, source_node, item.get("source_element_id"))
+        target_id = _node_graph_id(target_kind, target_node, item.get("target_element_id"))
+        if source_id not in node_seen or target_id not in node_seen:
+            continue
+
+        rel_type = str(item.get("relationship_type") or "RELATED_TO")
+        rel = item.get("relationship") or {}
+        relationship_id = item.get("relationship_element_id")
+        key = (
+            str(relationship_id)
+            if relationship_id is not None
+            else (source_id, target_id, rel_type, str(rel.get("Link_ID") or ""))
+        )
+        if key in edge_seen:
+            continue
+        edge_seen.add(key)
+
+        edge_args = {
+            "title": _edge_tooltip(rel_type, rel),
+            "arrows": "to",
+            "color": {"color": "#6F927B", "highlight": "#285C49", "hover": "#285C49"},
+            "width": 2.0,
+        }
+        if show_edge_labels:
+            edge_args["label"] = _friendly_relationship(rel_type, rel)
+            edge_args["font"] = {
+                "size": 8, "align": "middle",
+                "background": "rgba(255,255,255,0.82)",
+            }
+        net.add_edge(source_id, target_id, **edge_args)
+
+    _configure_network(net, full_graph=True)
+    return _wrap_html(net.generate_html(), counts, full_graph=True)
 
 
 def build_html_graph(compound_id: str, output_file=None, max_plants: int = 20):
-    """Backward-compatible file-based graph API (previous Streamlit version)."""
+    """Backward-compatible file-based compound graph API."""
     html = build_graph_html(compound_id=compound_id, max_plants=max_plants)
     if html is None:
         return None
@@ -254,6 +765,17 @@ def build_html_graph(compound_id: str, output_file=None, max_plants: int = 20):
     return path
 
 
+def build_html_full_graph(output_file=None, **kwargs):
+    """File-based full-graph API for scripts outside Streamlit."""
+    html = build_full_graph_html(**kwargs)
+    if html is None:
+        return None
+    path = Path(output_file or "outputs/full_knowledge_graph.html")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(html, encoding="utf-8")
+    return path
+
+
 if __name__ == "__main__":
     path = build_html_graph("CMP011", output_file="outputs/graph_CMP011.html")
-    print(f"Graph HTML: {path}" if path else "Compound not found in Neo4j")
+    print(f"Compound graph HTML: {path}" if path else "Compound not found in Neo4j")
