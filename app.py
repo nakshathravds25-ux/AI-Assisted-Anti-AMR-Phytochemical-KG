@@ -16,7 +16,13 @@ from dotenv import load_dotenv
 
 from database import _secret, get_driver
 from evaluation.answerability_detector import detect_answerability
-from graph_visualization import build_graph_html
+from graph_visualization import (
+    build_full_graph_html,
+    build_graph_html,
+    get_compound_options,
+    get_graph_relationship_type_counts,
+    get_graph_relationship_types,
+)
 from graphrag import answer_question
 from groq_engine import generate_groq_answer
 from ollama_engine import generate_local_answer
@@ -207,39 +213,39 @@ def caution(text: str) -> None:
 
 
 def show_scoring_guide() -> None:
-    """Explain the existing V3 formula using public-facing, nonclinical language."""
-    with st.expander("How are compounds ranked?", expanded=False):
+    """Explain the exploratory evidence-priority score in plain language."""
+    with st.expander("How are compounds prioritised?", expanded=False):
         st.markdown(
-            "**Evidence Priority Score (0–100)** is a rule-based index that helps "
-            "identify compounds worth investigating further. It combines the quality "
-            "categories, breadth and documentation of mapped research records. "
-            "It is **not** a probability of treatment success or a measure of drug potency."
+            "**Evidence Priority Score (0–100)** is an exploratory research index. "
+            "It helps identify compounds with more substantial mapped research records. "
+            "It is **not** a probability of treatment success, a measure of drug potency, "
+            "or a clinical recommendation."
         )
         parts = [
-            ("30", "Pathogen-study evidence grade"),
-            ("25", "Molecular-target evidence grade"),
-            ("20", "Resistance-specificity information"),
-            ("15", "Breadth of distinct research sources"),
-            ("10", "Breadth of pathogen records"),
+            ("30 points", "Pathogen-study evidence", "The grade assigned to mapped antimicrobial-study evidence involving pathogen records."),
+            ("25 points", "Molecular-target evidence", "The grade assigned to mapped evidence connecting compounds with molecular targets."),
+            ("20 points", "Resistance-specificity information", "Whether the mapped records contain information relevant to antimicrobial resistance."),
+            ("15 points", "Distinct research sources", "The breadth of separate publications represented in the evidence records."),
+            ("10 points", "Pathogen-record breadth", "The breadth of different pathogen records linked to the compound."),
         ]
         tiles = "".join(
-            f'<div class="ph-score-part"><div class="ph-score-points">{points} pts</div>'
-            f'<div class="ph-score-name">{escape(label)}</div></div>'
-            for points, label in parts
+            f'<div class="ph-score-part"><div class="ph-score-points">{escape(points)}</div>'
+            f'<div class="ph-score-name"><b>{escape(label)}</b><br>{escape(detail)}</div></div>'
+            for points, label, detail in parts
         )
         show_html(f'<div class="ph-score-grid">{tiles}</div>')
         st.markdown(
-            "**How to read the table:** The *Antimicrobial evidence grade* "
-            "and *Target evidence grade* are internal evidence-category scores, not "
-            "percentages of bacterial killing. *Sources (provisional)* are deduplicated "
-            "publication estimates that may require verification. *Evidence cautions* "
-            "count recorded warning flags; **zero does not mean proven safe or fully verified**."
+            "**How to read the evidence fields:** Antimicrobial evidence grade and target "
+            "evidence grade are internal evidence-category values. They are not percentages "
+            "of bacterial killing or probabilities of physical binding. The resistance-specificity "
+            "indicator is a metadata feature, not a percentage. Source counts are provisional "
+            "deduplicated publication estimates and may need manual verification. Evidence "
+            "cautions count recorded warning flags; **zero does not mean proven safe or fully verified**."
         )
         st.caption(
-            "Only 137 of the 425 registered compounds appear in this scoring export. "
-            "The other 288 were not ranked in this version; this does not imply they "
-            "are inactive. The V3 weights and evidence grades were chosen for "
-            "exploratory screening and are not clinically validated."
+            "The current scoring export covers 137 of the 425 registered compounds. "
+            "The other 288 have no score in this export; they are unranked here, not "
+            "classified as inactive. The weights are exploratory and have not been clinically validated."
         )
 
 
@@ -249,8 +255,9 @@ def get_rankings() -> pd.DataFrame:
     df = df.loc[:, ~df.columns.str.endswith(".1")].copy()
     if "Caution_Flags" in df.columns:
         df["Caution_Flags"] = df["Caution_Flags"].fillna("")
-    df["V3_Heuristic_Score"] = pd.to_numeric(df["V3_Heuristic_Score"], errors="coerce")
-    return df.sort_values("V3_Heuristic_Score", ascending=False).reset_index(drop=True)
+    df = df.rename(columns={"V3_Heuristic_Score": "Evidence_Priority_Score"})
+    df["Evidence_Priority_Score"] = pd.to_numeric(df["Evidence_Priority_Score"], errors="coerce")
+    return df.sort_values("Evidence_Priority_Score", ascending=False).reset_index(drop=True)
 
 
 @st.cache_data(ttl=120)
@@ -271,17 +278,24 @@ def get_graph_statistics() -> dict:
     return stats
 
 
+@st.cache_data(ttl=180)
+def cached_graph_relationship_counts() -> dict[str, int]:
+    return get_graph_relationship_type_counts()
+
+
+@st.cache_data(ttl=180)
+def cached_compound_options() -> list[dict[str, str]]:
+    return get_compound_options()
+
+
 rankings = get_rankings()
 try:
     graph_stats = get_graph_statistics()
     database_online = True
-except Exception as exc:
+except Exception:
     graph_stats = None
     database_online = False
-    print(
-        f"Neo4j connection error: {type(exc).__name__}: {exc}",
-        flush=True
-    )
+
 
 # -----------------------------------------------------------------------------
 # Sidebar and navigation — custom layout, real Streamlit controls.
@@ -337,7 +351,7 @@ with st.sidebar:
 
 show_html(
     '<div class="ph-topline"><span class="ph-eyebrow">PHYTOCHEMICAL DISCOVERY / KNOWLEDGE GRAPH</span>'
-    '<span class="ph-topmeta">RESEARCH PROTOTYPE &nbsp; / &nbsp; V3</span></div>'
+    '<span class="ph-topmeta">RESEARCH PROTOTYPE</span></div>'
 )
 
 
@@ -412,9 +426,9 @@ def show_overview() -> None:
         for n, ic, title, desc in steps
     ) + '</div>')
 
-    section_head("CANDIDATE LANDSCAPE", "Prioritized research candidates", "Evidence priority scores summarize mapped research evidence; they do not measure clinical effectiveness.", meta="TOP 12 / 137 MAPPED")
+    section_head("CANDIDATE LANDSCAPE", "Prioritized research candidates", "Evidence priority scores summarize mapped research evidence; they do not measure clinical effectiveness.", meta="TOP 12 / 137 SCORED")
     if not rankings.empty:
-        ranked = rankings.head(12).set_index("Compound")["V3_Heuristic_Score"].rename("Evidence priority score")
+        ranked = rankings.head(12).set_index("Compound")["Evidence_Priority_Score"].rename("Evidence priority score")
         st.bar_chart(ranked, horizontal=True, color="#5E9175", height=370)
     caution("These rankings are an exploratory guide for further research, not a measure of antibacterial potency, safety or clinical effectiveness.")
 
@@ -430,7 +444,7 @@ def show_rankings() -> None:
         "Compare compounds by the breadth and type of mapped scientific evidence. Higher scores suggest research priority, not better treatment outcomes."
     )
 
-    max_score = float(rankings["V3_Heuristic_Score"].max()) if not rankings.empty else 0.0
+    max_score = float(rankings["Evidence_Priority_Score"].max()) if not rankings.empty else 0.0
     show_html(
         '<div class="ph-kpis">'
         + metric_tile(1, "Ranked compounds", str(len(rankings)), "flask")
@@ -453,9 +467,9 @@ def show_rankings() -> None:
     filtered = rankings.copy()
     if text_filter.strip():
         filtered = filtered[filtered["Compound"].str.contains(text_filter.strip(), case=False, na=False, regex=False)]
-    filtered = filtered[filtered["V3_Heuristic_Score"] >= floor]
+    filtered = filtered[filtered["Evidence_Priority_Score"] >= floor]
     cols = [
-        "Rank_Among_137_Mapped", "Compound", "V3_Heuristic_Score", "Activity_Grade", "Target_Grade",
+        "Rank_Among_137_Mapped", "Compound", "Evidence_Priority_Score", "Activity_Grade", "Target_Grade",
         "Unique_Publications_Provisional", "Unique_Pathogen_Records", "Target_Links", "Caution_Flags_Count",
     ]
     available_cols = [c for c in cols if c in filtered.columns]
@@ -467,10 +481,10 @@ def show_rankings() -> None:
         column_config={
             "Rank_Among_137_Mapped": st.column_config.NumberColumn("Rank", format="%d"),
             "Compound": st.column_config.TextColumn("Phytochemical", width="medium"),
-            "V3_Heuristic_Score": st.column_config.NumberColumn("Evidence priority score", format="%.2f", help="Rule-based 0–100 research priority index, not antimicrobial effectiveness"),
+            "Evidence_Priority_Score": st.column_config.NumberColumn("Evidence priority score", format="%.2f", help="Rule-based 0–100 research priority index, not antimicrobial effectiveness"),
             "Activity_Grade": st.column_config.TextColumn("Antimicrobial evidence grade", help="Internal grade summarizing pathogen-side publication evidence; not a killing percentage"),
             "Target_Grade": st.column_config.TextColumn("Target evidence grade", help="Internal grade summarizing molecular-target evidence; not proof of physical binding"),
-            "Unique_Publications_Provisional": st.column_config.NumberColumn("Sources (provisional)", format="%d", help="Estimated distinct research publications; source identification is provisional"),
+            "Unique_Publications_Provisional": st.column_config.NumberColumn("Estimated distinct sources", format="%d", help="Provisional deduplicated publication estimate; verify sources before treating as definitive"),
             "Unique_Pathogen_Records": st.column_config.NumberColumn("Pathogen records", format="%d"),
             "Target_Links": st.column_config.NumberColumn("Target connections", format="%d"),
             "Caution_Flags_Count": st.column_config.NumberColumn("Evidence cautions", format="%d", help="Recorded evidence limitations; zero is not a safety or verification guarantee"),
@@ -490,29 +504,52 @@ def show_rankings() -> None:
         show_html(
             f'<div class="ph-profile"><small>PHYTOCHEMICAL / {escape(data.get("Compound_ID", ""))}</small>'
             f'<h3>{escape(name)}</h3><div class="ph-profile-meta">Evidence-ranked compound · provisional research record</div>'
-            f'<div class="ph-big-score">{float(data["V3_Heuristic_Score"]):.2f}</div>'
+            f'<div class="ph-big-score">{float(data["Evidence_Priority_Score"]):.2f}</div>'
             '<div class="ph-score-label">Evidence Priority Score · research index, not efficacy</div></div>'
         )
         st.markdown("**Evidence context**")
         st.write(str(data.get("Interpretation") or "No recorded interpretation."))
     with right:
         m1, m2, m3 = st.columns(3)
-        m1.metric("Publications", int(data.get("Unique_Publications_Provisional") or 0), help="Provisional, not independently verified source count")
+        m1.metric("Estimated sources", int(data.get("Unique_Publications_Provisional") or 0), help="Provisional deduplicated publication estimate; not independently verified")
         m2.metric("Pathogen records", int(data.get("Unique_Pathogen_Records") or 0))
         m3.metric("Target connections", int(data.get("Target_Links") or 0))
-        with st.expander("Complete ranking metadata", expanded=True):
+        with st.expander("What do these evidence fields mean?", expanded=True):
             details = [
-                ("Evidence coverage", "Evidence_Coverage"),
-                ("Antimicrobial evidence grade", "Activity_Grade"),
-                ("Target evidence grade", "Target_Grade"),
-                ("Resistance-specificity metadata indicator", "Specificity_Proxy"),
-                ("Pathogen links", "Pathogen_Links"),
-                ("Synergy relationships", "Synergy_Relationships"),
-                ("Recorded evidence cautions", "Caution_Flags"),
+                (
+                    "Evidence coverage", "Evidence_Coverage",
+                    "Whether the compound has both pathogen-side antimicrobial evidence and molecular-target evidence recorded."
+                ),
+                (
+                    "Antimicrobial evidence grade", "Activity_Grade",
+                    "An internal grade for pathogen-side evidence. A value such as 0.847 is not 84.7% bacterial killing."
+                ),
+                (
+                    "Target evidence grade", "Target_Grade",
+                    "An internal grade for target-side evidence. A value such as 0.86 is not an 86% chance of binding."
+                ),
+                (
+                    "Resistance-specificity indicator", "Specificity_Proxy",
+                    "A metadata indicator used by the ranking. A value such as 0.35 is not 35% resistance or effectiveness."
+                ),
+                (
+                    "Pathogen links", "Pathogen_Links",
+                    "The number of pathogen relationship records linked to this compound in the graph."
+                ),
+                (
+                    "Synergy relationships", "Synergy_Relationships",
+                    "The number of synergy relationship entries recorded for this compound; this is not necessarily the number of independent publications."
+                ),
+                (
+                    "Recorded evidence cautions", "Caution_Flags",
+                    "Warning flags present in this row. 'None recorded' does not establish safety or complete verification."
+                ),
             ]
-            for label, field in details:
+            for label, field, meaning in details:
                 value = data.get(field, "Not recorded")
-                st.markdown(f"**{label}:** {str(value) if pd.notna(value) and str(value).strip() else 'None recorded'}")
+                shown = str(value) if pd.notna(value) and str(value).strip() else "None recorded"
+                st.markdown(f"**{label}:** {shown}")
+                st.caption(meaning)
 
     caution("A higher Evidence Priority Score reflects more extensive or stronger mapped research records under this model. It does not establish antimicrobial potency, safety, physical binding or clinical benefit.")
 
@@ -524,8 +561,8 @@ def show_rankings() -> None:
 
 def show_graph() -> None:
     page_intro(
-        "DISCOVERY / 02", "Knowledge Graph Explorer",
-        "Explore a compound-centered network connecting medicinal plants, phytochemicals, molecular targets and pathogen records."
+        "KNOWLEDGE GRAPH", "Knowledge Graph Explorer",
+        "Explore the complete Anti-AMR knowledge graph or search for one phytochemical to inspect its connected plants, targets and pathogen records."
     )
     show_html(
         '<div class="ph-legend">'
@@ -535,51 +572,331 @@ def show_graph() -> None:
         '<span class="ph-legend-item"><i class="ph-legend-dot" style="background:#C98289"></i>Pathogen records</span>'
         '</div>'
     )
-    opts = dict(zip(rankings["Compound"], rankings["Compound_ID"]))
-    if not opts:
-        st.info("No mapped compounds available for graph exploration.")
-        return
-    a, b, c = st.columns([2.2, 1.0, 1.0], vertical_alignment="bottom", gap="medium")
-    with a:
-        name = st.selectbox("Focus compound", options=list(opts), key="graph_name")
-    with b:
-        max_plants = st.slider("Plant display limit", min_value=5, max_value=40, value=15, step=5, key="graph_max_plants")
-    with c:
-        requested = st.button("Explore connections", type="primary", width="stretch", key="graph_explore")
 
-    if requested:
+    if st.session_state.get("graph_view_mode") == "Compound-Centred Network":
+        st.session_state["graph_view_mode"] = "Search by Compound"
+
+    graph_mode = st.radio(
+        "Choose graph view",
+        options=["Full Knowledge Graph", "Search by Compound"],
+        horizontal=True,
+        key="graph_view_mode",
+    )
+
+    if graph_mode == "Full Knowledge Graph":
+        st.markdown(
+            "View the connected dataset across all four entity categories. "
+            "The filters let you focus on selected entity and relationship types."
+        )
+        st.caption(
+            "The full graph is visually dense. Reset the filters to restore all four entity types "
+            "and all recorded relationship types. Node positions and edge lengths are visual layout only."
+        )
+
         if not database_online:
             st.error("Neo4j is unavailable. Check the configured AuraDB connection and retry.")
-        else:
-            try:
-                with st.spinner("Building evidence-linked subgraph..."):
-                    html = build_graph_html(opts[name], max_plants=max_plants)
-                if html is None:
-                    st.warning("No matching compound or graph record was found.")
-                else:
-                    st.session_state["graph_html"] = html
-                    st.session_state["graph_view_name"] = name
-                    st.session_state["graph_view_limit"] = max_plants
-            except Exception as exc:
-                st.error(f"Knowledge graph visualization could not be generated: {type(exc).__name__}")
+            return
 
-    if "graph_html" in st.session_state:
-        section_head(
-            "NETWORK CANVAS", st.session_state.get("graph_view_name", "Compound network"),
-            "Drag nodes to inspect their neighborhood. Hover over a relationship to see the recorded experimental context.",
-            meta=f'UP TO {st.session_state.get("graph_view_limit", 15)} PLANTS',
+        try:
+            relationship_counts = cached_graph_relationship_counts()
+            relationship_options = list(relationship_counts)
+            if not relationship_options:
+                relationship_options = get_graph_relationship_types()
+        except Exception as exc:
+            st.error(
+                "Could not load relationship-type filters from Neo4j: "
+                f"{type(exc).__name__}"
+            )
+            return
+
+        node_options = ["Plant", "Compound", "Target", "Pathogen"]
+        node_display = {
+            "Plant": "Medicinal plants",
+            "Compound": "Phytochemical compounds",
+            "Target": "Molecular targets",
+            "Pathogen": "Pathogen / resistance records",
+        }
+        relationship_display = {
+            "CONTAINS_COMPOUND": "Plant → compound: occurrence / contains",
+            "INTERACTS_WITH_TARGET": "Compound → target: molecular-target evidence",
+            "ACTS_AGAINST_PATHOGEN": "Compound → pathogen: antimicrobial evidence",
+            "ASSOCIATED_WITH_TARGET": "Pathogen → target: resistance-associated target",
+        }
+
+        reset_col, helper_col = st.columns([1, 3], gap="small")
+        with reset_col:
+            if st.button("Reset all graph filters", key="reset_full_graph_filters"):
+                for key in (
+                    "full_graph_node_types",
+                    "full_graph_relationship_types",
+                    "full_graph_html",
+                    "full_graph_signature",
+                    "full_graph_loaded",
+                ):
+                    st.session_state.pop(key, None)
+                st.rerun()
+        with helper_col:
+            st.caption(
+                "Default view: all entity types and all relationship types. "
+                "Each relationship label below also shows its database record count."
+            )
+
+        left, right = st.columns(2, gap="medium")
+        with left:
+            selected_node_types = st.multiselect(
+                "Entity types to display",
+                options=node_options,
+                default=node_options,
+                format_func=lambda value: node_display[value],
+                key="full_graph_node_types",
+            )
+        with right:
+            selected_relationship_types = st.multiselect(
+                "Relationship types to display",
+                options=relationship_options,
+                default=relationship_options,
+                format_func=lambda value: (
+                    f"{relationship_display.get(value, value.replace('_', ' ').title())} "
+                    f"({relationship_counts.get(value, 0):,})"
+                ),
+                key="full_graph_relationship_types",
+            )
+
+        c1, c2 = st.columns([1, 1.5], gap="medium")
+        with c1:
+            max_relationships = st.selectbox(
+                "Maximum relationships to load",
+                options=[1000, 2500, 5000, 10000],
+                index=3,
+                format_func=lambda value: f"{value:,}",
+                key="full_graph_max_relationships",
+                help="Choose 10,000 to include the current 4,299-relationship dataset without truncation.",
+            )
+        with c2:
+            show_edge_labels = st.checkbox(
+                "Show labels on every connection",
+                value=False,
+                key="full_graph_edge_labels",
+                help="This can clutter the complete graph. Hover over a connection to inspect its evidence details.",
+            )
+
+        if selected_node_types:
+            st.caption(
+                "Relationship direction and endpoint types: Plant → Compound; "
+                "Compound → Target; Compound → Pathogen; Pathogen → Target. "
+                "A connection appears only when both of its endpoint categories are selected."
+            )
+
+        load_full_graph = st.button(
+            "Load Full Knowledge Graph",
+            type="primary",
+            width="stretch",
+            key="load_full_graph",
         )
-        st.components.v1.html(st.session_state["graph_html"], height=635, scrolling=False)
-        st.caption("Edges represent recorded knowledge-graph relationships. Node proximity and edge length are visualization choices, not measures of molecular activity.")
+
+        full_signature = (
+            tuple(selected_node_types),
+            tuple(selected_relationship_types),
+            int(max_relationships),
+            bool(show_edge_labels),
+        )
+
+        if load_full_graph:
+            if not selected_node_types:
+                st.warning("Select at least one entity type.")
+            elif not selected_relationship_types:
+                st.warning("Select at least one relationship type.")
+            else:
+                try:
+                    with st.spinner("Retrieving graph entities and relationships from Neo4j..."):
+                        html = build_full_graph_html(
+                            node_types=selected_node_types,
+                            relationship_types=selected_relationship_types,
+                            max_relationships=max_relationships,
+                            show_edge_labels=show_edge_labels,
+                        )
+                    if html is None:
+                        st.warning("No graph records matched the selected filters.")
+                        st.session_state.pop("full_graph_html", None)
+                        st.session_state.pop("full_graph_signature", None)
+                    else:
+                        st.session_state["full_graph_html"] = html
+                        st.session_state["full_graph_signature"] = full_signature
+                        st.session_state["full_graph_loaded"] = True
+                except Exception as exc:
+                    st.error(
+                        "Full knowledge graph could not be generated: "
+                        f"{type(exc).__name__}. Check the terminal for details."
+                    )
+
+        if st.session_state.get("full_graph_html"):
+            if st.session_state.get("full_graph_signature") != full_signature:
+                st.info("Your filters have changed. Select **Load Full Knowledge Graph** to update the visualization.")
+            else:
+                section_head(
+                    "NETWORK CANVAS",
+                    "Full Knowledge Graph",
+                    "Search for a node in the graph using the FIND A NODE box inside the canvas. Hover over edges for their recorded evidence.",
+                    meta="FULL GRAPH" if len(selected_node_types) == 4 else "FILTERED GRAPH",
+                )
+                st.components.v1.html(
+                    st.session_state["full_graph_html"],
+                    height=790,
+                    scrolling=False,
+                )
+                if (
+                    len(selected_node_types) == 4
+                    and set(selected_relationship_types) == set(relationship_options)
+                    and graph_stats
+                ):
+                    st.caption(
+                        f"Complete dataset view: {graph_stats.get('nodes', '—'):,} nodes "
+                        f"and {graph_stats.get('relationships', '—'):,} relationships, "
+                        "subject to the selected relationship limit."
+                    )
+                else:
+                    st.caption(
+                        "Filtered graph view. Only selected entity and relationship types are displayed."
+                    )
+        else:
+            show_html(
+                '<div class="ph-panel" style="min-height:150px;display:flex;align-items:center;gap:18px;margin-top:20px">'
+                f'<div class="ph-kpi-icon" style="width:50px;height:50px;flex-shrink:0">{icon("network")}</div>'
+                '<div><h3>Explore the complete knowledge graph</h3>'
+                '<p>Keep all filters selected and click Load Full Knowledge Graph to inspect the complete network.</p></div></div>'
+            )
+
+        caution(
+            "The full graph shows recorded Neo4j relationships. Arrows follow the stored relationship direction. "
+            "Node positions and edge lengths do not represent biological distance, interaction strength, confidence "
+            "or evidence grade."
+        )
+        return
+
+    # Search by Compound: all registered compounds, including compounds outside the scored subset.
+    st.markdown(
+        "Search the full compound registry (not just the 137 compounds with ranking scores), "
+        "then load the selected compound's directly connected network."
+    )
+    if not database_online:
+        st.error("Neo4j is unavailable. Check the configured AuraDB connection and retry.")
+        return
+
+    try:
+        compound_records = cached_compound_options()
+    except Exception as exc:
+        st.error(f"Could not load the compound directory from Neo4j: {type(exc).__name__}")
+        return
+
+    if not compound_records:
+        st.info("No registered compounds were returned by Neo4j.")
+        return
+
+    search_text = st.text_input(
+        "Search by compound name or ID",
+        placeholder="For example: Baicalein, Quercetin, Curcumin or CMP011",
+        key="graph_compound_search_text",
+    )
+    search_lower = search_text.strip().casefold()
+    filtered_compounds = [
+        item for item in compound_records
+        if not search_lower
+        or search_lower in item["compound_name"].casefold()
+        or search_lower in item["compound_id"].casefold()
+    ]
+
+    st.caption(
+        f"{len(filtered_compounds):,} matching compounds out of {len(compound_records):,} registered in the graph."
+    )
+    if not filtered_compounds:
+        st.warning("No compound matches that search. Try another name or compound ID.")
+        return
+
+    compound_labels = [
+        f'{item["compound_name"]}  ·  {item["compound_id"]}'
+        for item in filtered_compounds
+    ]
+    label_to_record = dict(zip(compound_labels, filtered_compounds))
+    if st.session_state.get("graph_compound_choice") not in label_to_record:
+        st.session_state.pop("graph_compound_choice", None)
+
+    a, b = st.columns([2.2, 1.0], vertical_alignment="bottom", gap="medium")
+    with a:
+        selected_label = st.selectbox(
+            "Choose a compound",
+            options=compound_labels,
+            key="graph_compound_choice",
+        )
+    with b:
+        max_plants = st.slider(
+            "Plant display limit",
+            min_value=5,
+            max_value=40,
+            value=15,
+            step=5,
+            key="graph_max_plants",
+        )
+
+    selected_record = label_to_record[selected_label]
+    selected_name = selected_record["compound_name"]
+    selected_id = selected_record["compound_id"]
+    requested = st.button(
+        "Explore connections",
+        type="primary",
+        width="stretch",
+        key="graph_explore",
+    )
+
+    compound_signature = (str(selected_id), int(max_plants))
+    if requested:
+        try:
+            with st.spinner("Building the selected compound's evidence-linked network..."):
+                html = build_graph_html(selected_id, max_plants=max_plants)
+            if html is None:
+                st.warning("No matching compound or graph record was found.")
+                st.session_state.pop("compound_graph_html", None)
+                st.session_state.pop("compound_graph_signature", None)
+            else:
+                st.session_state["compound_graph_html"] = html
+                st.session_state["compound_graph_signature"] = compound_signature
+        except Exception as exc:
+            st.error(
+                "Compound network visualization could not be generated: "
+                f"{type(exc).__name__}. Check the terminal for details."
+            )
+
+    if st.session_state.get("compound_graph_html"):
+        if st.session_state.get("compound_graph_signature") != compound_signature:
+            st.info("Your selected compound or plant limit has changed. Select **Explore connections** to update the network.")
+        else:
+            section_head(
+                "NETWORK CANVAS",
+                selected_name,
+                "The selected phytochemical and its directly connected plants, targets and pathogen records. Hover over each connection for the recorded evidence.",
+                meta="COMPOUND NETWORK",
+            )
+            st.components.v1.html(
+                st.session_state["compound_graph_html"],
+                height=635,
+                scrolling=False,
+            )
+            st.caption(
+                "This is a compound-centred network, not the complete graph. "
+                "Only direct relationships of the selected compound are shown."
+            )
     else:
         show_html(
             '<div class="ph-panel" style="min-height:150px;display:flex;align-items:center;gap:18px;margin-top:25px">'
             f'<div class="ph-kpi-icon" style="width:50px;height:50px;flex-shrink:0">{icon("network")}</div>'
-            '<div><h3>Build your first research network</h3>'
-            '<p>Select a compound and choose Explore connections to load its evidence-linked Neo4j neighborhood.</p></div></div>'
+            '<div><h3>Search for a compound to build its network</h3>'
+            '<p>Search all registered compounds by name or ID, select one, then choose Explore connections.</p></div></div>'
         )
-    caution("Relationship labels summarize records in the knowledge graph; they do not independently verify primary literature, prove binding, or demonstrate clinical effectiveness.")
 
+    caution(
+        "Relationship labels summarize records in the knowledge graph; they do not independently verify primary "
+        "literature, prove physical binding, or demonstrate clinical effectiveness. Edge lengths and node positions "
+        "are visualization choices, not measures of biological activity."
+    )
 
 # -----------------------------------------------------------------------------
 # Page: AI Research Assistant — backend unchanged and safety screening retained.
@@ -781,7 +1098,7 @@ def show_about() -> None:
     show_html(
         '<div class="ph-steps">'
         f'<div class="ph-step"><div class="ph-step-no">01 / STRUCTURE</div><div class="ph-step-ico">{icon("network")}</div><div class="ph-step-title">Neo4j knowledge graph</div><div class="ph-step-text">Entities and relationships with recorded evidence fields and source identifiers.</div></div>'
-        f'<div class="ph-step"><div class="ph-step-no">02 / PRIORITIZE</div><div class="ph-step-ico">{icon("activity")}</div><div class="ph-step-title">V3 candidate ranking</div><div class="ph-step-text">Evidence Priority Scores for 137 mapped compounds, using a provisional rule-based research index.</div></div>'
+        f'<div class="ph-step"><div class="ph-step-no">02 / PRIORITIZE</div><div class="ph-step-ico">{icon("activity")}</div><div class="ph-step-title">Evidence-priority scoring</div><div class="ph-step-text">An exploratory research index for 137 scored compounds, based on mapped evidence categories and record breadth.</div></div>'
         f'<div class="ph-step"><div class="ph-step-no">03 / EXPLAIN</div><div class="ph-step-ico">{icon("spark")}</div><div class="ph-step-title">Evidence-grounded GraphRAG</div><div class="ph-step-text">Question-specific Neo4j retrieval, answerability screening and optional LLM interpretation.</div></div>'
         '</div>'
     )
@@ -807,7 +1124,7 @@ def show_about() -> None:
         "matching do not constitute independent validation of every individual claim."
     )
     st.markdown("#### Computational stack")
-    st.markdown("**Streamlit** interface · **Neo4j AuraDB** graph storage · **Groq** optional hosted explanations · **PyVis** interactive network · **Evidence Priority Score (methodology version V3)**")
+    st.markdown("**Streamlit** interface · **Neo4j AuraDB** graph storage · **Groq** optional hosted explanations · **PyVis** interactive network · **Evidence Priority Score (exploratory research index)**")
     caution("The prototype is intended for academic research and demonstration, not clinical or therapeutic decision-making.")
 
 
