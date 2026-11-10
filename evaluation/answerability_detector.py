@@ -132,9 +132,13 @@ def asks_direct_binding(question):
     return direct and proof
 
 
+
 def has_direct_binding_evidence(records):
     """
     Check for explicit direct-binding assay descriptions.
+
+    Negated descriptions such as "No direct binding assay
+    described" must not be treated as positive evidence.
 
     This is a screening heuristic, not confirmation
     that the cited experiment demonstrates binding.
@@ -148,10 +152,50 @@ def has_direct_binding_evidence(records):
         r"\bmeasured binding affinity\b",
     ]
 
-    return any(
-        matches_any(evidence_text(r), patterns)
-        for r in records
-    )
+    negation_patterns = [
+        r"\bno\b",
+        r"\bnot\b",
+        r"\bnever\b",
+        r"\bwithout\b",
+        r"\babsence of\b",
+        r"\black of\b",
+        r"\bdidn't\b",
+        r"\bdoesn't\b",
+        r"\bdon't\b",
+        r"\bwasn't\b",
+        r"\bweren't\b",
+        r"\bisn't\b",
+        r"\baren't\b",
+        r"\bhasn't\b",
+        r"\bhaven't\b",
+        r"\bcan't\b",
+    ]
+
+    for record in records:
+        text = evidence_text(record)
+
+        # Separate independent clauses so that a negation
+        # does not automatically cancel a positive finding
+        # in a different clause.
+        clauses = re.split(
+            r"(?<=[.!?;,])\s+|\b(?:but|however|although|whereas|yet)\b",
+            text,
+            flags=re.IGNORECASE
+        )
+
+        for clause in clauses:
+            if not matches_any(clause, patterns):
+                continue
+
+            # Ignore assay mentions explicitly described
+            # as absent, unreported or not performed.
+            if matches_any(clause, negation_patterns):
+                continue
+
+            return True
+
+    return False
+
 
 
 def has_publication_identifiers(records):
