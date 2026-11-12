@@ -1,13 +1,14 @@
 """PhytoGraph Research Atlas — presentation-layer redesign for Anti-AMR GraphRAG.
 
-Works with the existing database.py, graph_visualization.py, graphrag.py,
+Works with the existing database.py, ranking.py, graphrag.py,
 ollama_engine.py, groq_engine.py and evaluation/answerability_detector.py.
-The interface focuses on knowledge-graph exploration and evidence-grounded research assistance.
+No data or backend scientific logic is modified here.
 """
 
 from __future__ import annotations
 
 from html import escape as html_escape
+
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -251,11 +252,13 @@ except Exception:
 show_html(STYLE)
 
 PAGES = (
+    ("Overview", "overview"),
     ("Knowledge Graph", "graph"),
-    ("Evidence Research Assistant", "assistant"),
+    ("AI Research Assistant", "assistant"),
+    ("About the Research", "about"),
 )
-if "current_page" not in st.session_state or st.session_state.current_page not in {"graph", "assistant"}:
-    st.session_state.current_page = "graph"
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "overview"
 
 with st.sidebar:
     show_html(
@@ -300,6 +303,79 @@ show_html(
 
 
 # -----------------------------------------------------------------------------
+# Page: overview
+# -----------------------------------------------------------------------------
+
+HERO_ART = """
+<svg viewBox="0 0 470 320" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Botanical leaves and molecular network illustration" role="img">
+<defs><linearGradient id="leafgrad" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6EA88A"/><stop offset="1" stop-color="#2A614D"/></linearGradient>
+<linearGradient id="leaflight" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#BBDCC2"/><stop offset="1" stop-color="#75B194"/></linearGradient></defs>
+<circle cx="298" cy="161" r="125" stroke="#BDD5C5" stroke-width="1" stroke-dasharray="3 7"/><circle cx="298" cy="161" r="89" stroke="#C8DCCB" stroke-width="1.1"/><circle cx="298" cy="161" r="51" stroke="#B6D2BC" stroke-width="1" stroke-dasharray="3 6"/>
+<path d="M224 292C226 232 250 201 290 155" stroke="#397658" stroke-width="4" stroke-linecap="round"/>
+<path d="M273 176C227 151 205 109 223 63c47 7 78 49 50 113Z" fill="url(#leafgrad)"/><path d="M273 176c-7-49-22-72-45-98" stroke="#CDE6D1" stroke-width="2"/>
+<path d="M256 204C292 155 343 137 377 153c-20 57-77 86-121 51Z" fill="url(#leaflight)"/><path d="M256 204c40-20 68-31 106-42" stroke="#E6F6E7" stroke-width="2"/>
+<path d="M240 252C205 230 178 188 190 146c46 5 70 58 50 106Z" fill="#80B89A"/><path d="M240 252c-4-28-15-53-39-86" stroke="#E7F6E7" stroke-width="1.8"/>
+<path d="M293 150 359 83 425 126M293 150 357 236 418 202M359 83 357 236M224 92 293 150" stroke="#88B6A5" stroke-width="1.7" stroke-dasharray="3 6"/>
+<circle cx="359" cy="83" r="12" fill="#FFF7E8" stroke="#CEA46B" stroke-width="3"/><circle cx="425" cy="126" r="9" fill="#E6F0F9" stroke="#729DB9" stroke-width="2.6"/><circle cx="357" cy="236" r="11" fill="#F9E9E8" stroke="#C68186" stroke-width="3"/><circle cx="418" cy="202" r="7" fill="#E6F0F9" stroke="#729DB9" stroke-width="2"/><circle cx="224" cy="92" r="6" fill="#D2E7D7" stroke="#72A78A" stroke-width="2"/>
+<circle cx="293" cy="150" r="13" fill="#FFFFFF" stroke="#D5AE78" stroke-width="3"/><circle cx="293" cy="150" r="4" fill="#D5AE78"/><circle cx="359" cy="83" r="4" fill="#D2AB77"/>
+<path d="M146 292h264" stroke="#B9D2BD" stroke-width="1"/><text x="151" y="308" font-size="10" fill="#779681" font-family="sans-serif" letter-spacing="2">BOTANICAL  /  MOLECULAR  /  EVIDENCE</text>
+</svg>
+"""
+
+
+def show_overview() -> None:
+    show_html(
+        '<div class="ph-hero"><div class="ph-hero-copy">'
+        '<span class="ph-eyebrow">BOTANICAL INTELLIGENCE MEETS SCIENTIFIC EVIDENCE</span>'
+        '<h1>Nature holds possibilities.<br>Evidence reveals connections.</h1>'
+        '<p>Discover phytochemicals from traditional medicinal plants, trace their reported molecular '
+        'relationships, and explore antimicrobial research in one connected workspace.</p>'
+        '<div class="ph-chipline"><span class="ph-chip">Evidence-first discovery</span>'
+        '<span class="ph-chip">Knowledge graph</span><span class="ph-chip">AI-assisted research</span></div>'
+        f'</div><div class="ph-art">{HERO_ART}</div></div>'
+    )
+    c1, c2, _ = st.columns([1.2, 1.5, 3.0], gap="small")
+    with c1:
+        if st.button("Open Knowledge Graph", type="primary", width="stretch", key="overview_graph"):
+            st.session_state.current_page = "graph"
+            st.rerun()
+    with c2:
+        if st.button("Ask the Research Assistant", width="stretch", key="overview_assistant"):
+            st.session_state.current_page = "assistant"
+            st.rerun()
+
+    stats = graph_stats or {}
+    show_html(
+        '<div class="ph-kpis">'
+        + metric_tile(1, "Medicinal plants", f'{stats.get("Plant", 100):,}', "leaf")
+        + metric_tile(2, "Phytochemical compounds", f'{stats.get("Compound", 425):,}', "flask")
+        + metric_tile(3, "Pathogen / resistance records", f'{stats.get("Pathogen", 24):,}', "network")
+        + metric_tile(4, "Molecular targets", f'{stats.get("Target", 49):,}', "target")
+        + '</div>'
+        + '<div class="ph-strip">'
+        + f'<span class="ph-strip-item"><b>{stats.get("nodes", "—")}</b> total graph nodes</span>'
+        + f'<span class="ph-strip-item"><b>{stats.get("relationships", "—")}</b> graph relationships</span>'
+        + '<span class="ph-strip-item"><b>Neo4j</b> evidence retrieval</span>'
+        + '<span class="ph-strip-item"><b>GraphRAG</b> research assistance</span>'
+        + '</div>'
+    )
+
+    section_head("RESEARCH WORKFLOW", "One connected discovery journey", "From traditional medicine to a traceable scientific evidence record.")
+    steps = [
+        ("01", "leaf", "Explore botanicals", "Begin with medicinal plant records and their curated phytochemical associations."),
+        ("02", "network", "Inspect connections", "Navigate compound relationships with pathogen records and molecular targets."),
+        ("03", "spark", "Interrogate the evidence", "Ask GraphRAG questions and inspect the retrieved publications and limitations."),
+    ]
+    show_html('<div class="ph-steps">' + ''.join(
+        f'<div class="ph-step"><div class="ph-step-no">{n} / DISCOVERY</div>'
+        f'<div class="ph-step-ico">{icon(ic)}</div><div class="ph-step-title">{escape(title)}</div>'
+        f'<div class="ph-step-text">{escape(desc)}</div></div>'
+        for n, ic, title, desc in steps
+    ) + '</div>')
+
+    caution("The knowledge graph and research assistant support exploration of recorded scientific evidence. They do not establish antimicrobial potency, safety or clinical effectiveness.")
+
+
 # -----------------------------------------------------------------------------
 # Page: graph exploration
 # -----------------------------------------------------------------------------
@@ -831,11 +907,55 @@ def show_assistant() -> None:
 
 
 # -----------------------------------------------------------------------------
+# Page: methodology / research caveats
+# -----------------------------------------------------------------------------
+
+
+def show_about() -> None:
+    page_intro(
+        "DOCUMENTATION / METHODS", "About the Research",
+        "An AI-assisted knowledge graph for exploring research associations among medicinal plants, phytochemicals, antimicrobial-resistant pathogens and molecular targets."
+    )
+    section_head("ARCHITECTURE", "How the research platform works", "An evidence-oriented pipeline with separate data, retrieval, prioritization and explanation layers.")
+    show_html(
+        '<div class="ph-steps">'
+        f'<div class="ph-step"><div class="ph-step-no">01 / STRUCTURE</div><div class="ph-step-ico">{icon("network")}</div><div class="ph-step-title">Neo4j knowledge graph</div><div class="ph-step-text">Entities and relationships with recorded evidence fields and source identifiers.</div></div>'
+        f'<div class="ph-step"><div class="ph-step-no">02 / MAP EVIDENCE</div><div class="ph-step-ico">{icon("activity")}</div><div class="ph-step-title">Evidence-linked relationships</div><div class="ph-step-text">Recorded compound, pathogen and molecular-target associations with available source details.</div></div>'
+        f'<div class="ph-step"><div class="ph-step-no">03 / EXPLAIN</div><div class="ph-step-ico">{icon("spark")}</div><div class="ph-step-title">Evidence-grounded GraphRAG</div><div class="ph-step-text">Question-specific Neo4j retrieval, answerability screening and optional LLM interpretation.</div></div>'
+        '</div>'
+    )
+    section_head("INTERPRETATION", "What this system can — and cannot — establish", "Scientific caution is a design requirement, not a footnote.")
+    a, b = st.columns(2, gap="medium")
+    with a:
+        show_html(
+            f'<div class="ph-panel">{icon("shield")}<h3 style="margin-top:12px">Designed to support</h3>'
+            '<p>Literature-oriented candidate exploration, evidence traceability, identification of graph-linked targets, '
+            'and generation of hypothesis-level research questions.</p></div>'
+        )
+    with b:
+        show_html(
+            f'<div class="ph-panel">{icon("book")}<h3 style="margin-top:12px">Not a clinical prediction tool</h3>'
+            '<p>Links and heuristic scores do not prove physical target binding, in vivo activity, '
+            'antimicrobial efficacy in patients, safety or regulatory suitability.</p></div>'
+        )
+    st.markdown("#### Data interpretation notes")
+    st.markdown(
+        "The database includes plant–compound occurrence links, compound–target and compound–pathogen evidence records, "
+        "and pathogen–target associations. Their sources and evidence strengths vary. Literature records and systematic "
+        "matching do not constitute independent validation of every individual claim."
+    )
+    st.markdown("#### Computational stack")
+    st.markdown("**Streamlit** interface · **Neo4j AuraDB** graph storage · **Groq** optional hosted explanations · **PyVis** interactive network · **GraphRAG** evidence retrieval")
+    caution("The prototype is intended for academic research and demonstration, not clinical or therapeutic decision-making.")
+
+
 PAGE_HANDLERS = {
+    "overview": show_overview,
     "graph": show_graph,
     "assistant": show_assistant,
+    "about": show_about,
 }
-PAGE_HANDLERS.get(st.session_state.current_page, show_graph)()
+PAGE_HANDLERS.get(st.session_state.current_page, show_overview)()
 
 show_html(
     '<div class="ph-footer"><span>PHYTOGRAPH RESEARCH ATLAS &nbsp; / &nbsp; ANTI-AMR PHYTOCHEMICAL DISCOVERY</span>'
