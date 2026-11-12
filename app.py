@@ -8,9 +8,7 @@ No data or backend scientific logic is modified here.
 from __future__ import annotations
 
 from html import escape as html_escape
-from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -26,7 +24,6 @@ from graph_visualization import (
 from graphrag import answer_question
 from groq_engine import generate_groq_answer
 from ollama_engine import generate_local_answer
-from ranking import load_rankings
 
 
 load_dotenv()
@@ -212,54 +209,6 @@ def caution(text: str) -> None:
     show_html(f'<div class="ph-disclaimer">{escape(text)}</div>')
 
 
-def show_scoring_guide() -> None:
-    """Explain the exploratory evidence-priority score in plain language."""
-    with st.expander("How are compounds prioritised?", expanded=False):
-        st.markdown(
-            "**Evidence Priority Score (0–100)** is an exploratory research index. "
-            "It helps identify compounds with more substantial mapped research records. "
-            "It is **not** a probability of treatment success, a measure of drug potency, "
-            "or a clinical recommendation."
-        )
-        parts = [
-            ("30 points", "Pathogen-study evidence", "The grade assigned to mapped antimicrobial-study evidence involving pathogen records."),
-            ("25 points", "Molecular-target evidence", "The grade assigned to mapped evidence connecting compounds with molecular targets."),
-            ("20 points", "Resistance-specificity information", "Whether the mapped records contain information relevant to antimicrobial resistance."),
-            ("15 points", "Distinct research sources", "The breadth of separate publications represented in the evidence records."),
-            ("10 points", "Pathogen-record breadth", "The breadth of different pathogen records linked to the compound."),
-        ]
-        tiles = "".join(
-            f'<div class="ph-score-part"><div class="ph-score-points">{escape(points)}</div>'
-            f'<div class="ph-score-name"><b>{escape(label)}</b><br>{escape(detail)}</div></div>'
-            for points, label, detail in parts
-        )
-        show_html(f'<div class="ph-score-grid">{tiles}</div>')
-        st.markdown(
-            "**How to read the evidence fields:** Antimicrobial evidence grade and target "
-            "evidence grade are internal evidence-category values. They are not percentages "
-            "of bacterial killing or probabilities of physical binding. The resistance-specificity "
-            "indicator is a metadata feature, not a percentage. Source counts are provisional "
-            "deduplicated publication estimates and may need manual verification. Evidence "
-            "cautions count recorded warning flags; **zero does not mean proven safe or fully verified**."
-        )
-        st.caption(
-            "The current scoring export covers 137 of the 425 registered compounds. "
-            "The other 288 have no score in this export; they are unranked here, not "
-            "classified as inactive. The weights are exploratory and have not been clinically validated."
-        )
-
-
-@st.cache_data(ttl=180)
-def get_rankings() -> pd.DataFrame:
-    df = load_rankings()
-    df = df.loc[:, ~df.columns.str.endswith(".1")].copy()
-    if "Caution_Flags" in df.columns:
-        df["Caution_Flags"] = df["Caution_Flags"].fillna("")
-    df = df.rename(columns={"V3_Heuristic_Score": "Evidence_Priority_Score"})
-    df["Evidence_Priority_Score"] = pd.to_numeric(df["Evidence_Priority_Score"], errors="coerce")
-    return df.sort_values("Evidence_Priority_Score", ascending=False).reset_index(drop=True)
-
-
 @st.cache_data(ttl=120)
 def get_graph_statistics() -> dict:
     with get_driver() as driver:
@@ -288,7 +237,6 @@ def cached_compound_options() -> list[dict[str, str]]:
     return get_compound_options()
 
 
-rankings = get_rankings()
 try:
     graph_stats = get_graph_statistics()
     database_online = True
@@ -305,7 +253,6 @@ show_html(STYLE)
 
 PAGES = (
     ("Overview", "overview"),
-    ("Compound Explorer", "rankings"),
     ("Knowledge Graph", "graph"),
     ("AI Research Assistant", "assistant"),
     ("About the Research", "about"),
@@ -387,14 +334,14 @@ def show_overview() -> None:
         '<span class="ph-chip">Knowledge graph</span><span class="ph-chip">AI-assisted research</span></div>'
         f'</div><div class="ph-art">{HERO_ART}</div></div>'
     )
-    c1, c2, _ = st.columns([1.1, 1.2, 3.4], gap="small")
+    c1, c2, _ = st.columns([1.2, 1.5, 3.0], gap="small")
     with c1:
-        if st.button("Explore compounds", type="primary", width="stretch", key="overview_compounds"):
-            st.session_state.current_page = "rankings"
+        if st.button("Open Knowledge Graph", type="primary", width="stretch", key="overview_graph"):
+            st.session_state.current_page = "graph"
             st.rerun()
     with c2:
-        if st.button("Open knowledge graph", width="stretch", key="overview_graph"):
-            st.session_state.current_page = "graph"
+        if st.button("Ask the Research Assistant", width="stretch", key="overview_assistant"):
+            st.session_state.current_page = "assistant"
             st.rerun()
 
     stats = graph_stats or {}
@@ -408,8 +355,8 @@ def show_overview() -> None:
         + '<div class="ph-strip">'
         + f'<span class="ph-strip-item"><b>{stats.get("nodes", "—")}</b> total graph nodes</span>'
         + f'<span class="ph-strip-item"><b>{stats.get("relationships", "—")}</b> graph relationships</span>'
-        + f'<span class="ph-strip-item"><b>{len(rankings)}</b> evidence-ranked compounds</span>'
-        + '<span class="ph-strip-item"><b>0–100</b> evidence priority index</span>'
+        + '<span class="ph-strip-item"><b>Neo4j</b> evidence retrieval</span>'
+        + '<span class="ph-strip-item"><b>GraphRAG</b> research assistance</span>'
         + '</div>'
     )
 
@@ -426,132 +373,7 @@ def show_overview() -> None:
         for n, ic, title, desc in steps
     ) + '</div>')
 
-    section_head("CANDIDATE LANDSCAPE", "Prioritized research candidates", "Evidence priority scores summarize mapped research evidence; they do not measure clinical effectiveness.", meta="TOP 12 / 137 SCORED")
-    if not rankings.empty:
-        ranked = rankings.head(12).set_index("Compound")["Evidence_Priority_Score"].rename("Evidence priority score")
-        st.bar_chart(ranked, horizontal=True, color="#5E9175", height=370)
-    caution("These rankings are an exploratory guide for further research, not a measure of antibacterial potency, safety or clinical effectiveness.")
-
-
-# -----------------------------------------------------------------------------
-# Page: compound explorer
-# -----------------------------------------------------------------------------
-
-
-def show_rankings() -> None:
-    page_intro(
-        "DISCOVERY / 01", "Phytochemical Explorer",
-        "Compare compounds by the breadth and type of mapped scientific evidence. Higher scores suggest research priority, not better treatment outcomes."
-    )
-
-    max_score = float(rankings["Evidence_Priority_Score"].max()) if not rankings.empty else 0.0
-    show_html(
-        '<div class="ph-kpis">'
-        + metric_tile(1, "Ranked compounds", str(len(rankings)), "flask")
-        + metric_tile(2, "Top evidence priority score", f"{max_score:.2f}", "activity")
-        + metric_tile(3, "Graph nodes", str((graph_stats or {}).get("nodes", "—")), "network")
-        + metric_tile(4, "Protein targets", str((graph_stats or {}).get("Target", 49)), "target")
-        + '</div>'
-    )
-
-    section_head("CANDIDATE DIRECTORY", "Browse research candidates", "Search the ranked research subset and adjust the minimum evidence priority score.")
-    show_scoring_guide()
-    a, b, c = st.columns([2.3, 1.2, 1.2], gap="medium")
-    with a:
-        text_filter = st.text_input("Search compound", placeholder="Search by compound name", key="compound_search")
-    with b:
-        floor = st.slider("Minimum evidence priority score", min_value=0, max_value=max(1, int(max_score)), value=0, key="rank_floor")
-    with c:
-        count = st.selectbox("Show up to", options=[10, 20, 50, 100, len(rankings)], index=1, key="rank_count")
-
-    filtered = rankings.copy()
-    if text_filter.strip():
-        filtered = filtered[filtered["Compound"].str.contains(text_filter.strip(), case=False, na=False, regex=False)]
-    filtered = filtered[filtered["Evidence_Priority_Score"] >= floor]
-    cols = [
-        "Rank_Among_137_Mapped", "Compound", "Evidence_Priority_Score", "Activity_Grade", "Target_Grade",
-        "Unique_Publications_Provisional", "Unique_Pathogen_Records", "Target_Links", "Caution_Flags_Count",
-    ]
-    available_cols = [c for c in cols if c in filtered.columns]
-    st.dataframe(
-        filtered[available_cols].head(count),
-        hide_index=True,
-        width="stretch",
-        height=425,
-        column_config={
-            "Rank_Among_137_Mapped": st.column_config.NumberColumn("Rank", format="%d"),
-            "Compound": st.column_config.TextColumn("Phytochemical", width="medium"),
-            "Evidence_Priority_Score": st.column_config.NumberColumn("Evidence priority score", format="%.2f", help="Rule-based 0–100 research priority index, not antimicrobial effectiveness"),
-            "Activity_Grade": st.column_config.TextColumn("Antimicrobial evidence grade", help="Internal grade summarizing pathogen-side publication evidence; not a killing percentage"),
-            "Target_Grade": st.column_config.TextColumn("Target evidence grade", help="Internal grade summarizing molecular-target evidence; not proof of physical binding"),
-            "Unique_Publications_Provisional": st.column_config.NumberColumn("Estimated distinct sources", format="%d", help="Provisional deduplicated publication estimate; verify sources before treating as definitive"),
-            "Unique_Pathogen_Records": st.column_config.NumberColumn("Pathogen records", format="%d"),
-            "Target_Links": st.column_config.NumberColumn("Target connections", format="%d"),
-            "Caution_Flags_Count": st.column_config.NumberColumn("Evidence cautions", format="%d", help="Recorded evidence limitations; zero is not a safety or verification guarantee"),
-        },
-    )
-    st.caption(f"Showing {min(len(filtered), count)} of {len(filtered)} matching compounds. Ranking covers 137 mapped compounds out of 425 total registered compounds.")
-
-    section_head("DEEPER INSPECTION", "Compound evidence profile", "Select one candidate to review the reported evidence coverage and caution flags.")
-    names = rankings["Compound"].dropna().unique().tolist()
-    if not names:
-        st.info("No ranked compound records are available.")
-        return
-    name = st.selectbox("Select a compound profile", options=names, key="profile_name")
-    data = rankings.loc[rankings["Compound"] == name].iloc[0]
-    left, right = st.columns([1.0, 1.35], gap="large")
-    with left:
-        show_html(
-            f'<div class="ph-profile"><small>PHYTOCHEMICAL / {escape(data.get("Compound_ID", ""))}</small>'
-            f'<h3>{escape(name)}</h3><div class="ph-profile-meta">Evidence-ranked compound · provisional research record</div>'
-            f'<div class="ph-big-score">{float(data["Evidence_Priority_Score"]):.2f}</div>'
-            '<div class="ph-score-label">Evidence Priority Score · research index, not efficacy</div></div>'
-        )
-        st.markdown("**Evidence context**")
-        st.write(str(data.get("Interpretation") or "No recorded interpretation."))
-    with right:
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Estimated sources", int(data.get("Unique_Publications_Provisional") or 0), help="Provisional deduplicated publication estimate; not independently verified")
-        m2.metric("Pathogen records", int(data.get("Unique_Pathogen_Records") or 0))
-        m3.metric("Target connections", int(data.get("Target_Links") or 0))
-        with st.expander("What do these evidence fields mean?", expanded=True):
-            details = [
-                (
-                    "Evidence coverage", "Evidence_Coverage",
-                    "Whether the compound has both pathogen-side antimicrobial evidence and molecular-target evidence recorded."
-                ),
-                (
-                    "Antimicrobial evidence grade", "Activity_Grade",
-                    "An internal grade for pathogen-side evidence. A value such as 0.847 is not 84.7% bacterial killing."
-                ),
-                (
-                    "Target evidence grade", "Target_Grade",
-                    "An internal grade for target-side evidence. A value such as 0.86 is not an 86% chance of binding."
-                ),
-                (
-                    "Resistance-specificity indicator", "Specificity_Proxy",
-                    "A metadata indicator used by the ranking. A value such as 0.35 is not 35% resistance or effectiveness."
-                ),
-                (
-                    "Pathogen links", "Pathogen_Links",
-                    "The number of pathogen relationship records linked to this compound in the graph."
-                ),
-                (
-                    "Synergy relationships", "Synergy_Relationships",
-                    "The number of synergy relationship entries recorded for this compound; this is not necessarily the number of independent publications."
-                ),
-                (
-                    "Recorded evidence cautions", "Caution_Flags",
-                    "Warning flags present in this row. 'None recorded' does not establish safety or complete verification."
-                ),
-            ]
-            for label, field, meaning in details:
-                value = data.get(field, "Not recorded")
-                shown = str(value) if pd.notna(value) and str(value).strip() else "None recorded"
-                st.markdown(f"**{label}:** {shown}")
-                st.caption(meaning)
-
-    caution("A higher Evidence Priority Score reflects more extensive or stronger mapped research records under this model. It does not establish antimicrobial potency, safety, physical binding or clinical benefit.")
+    caution("The knowledge graph and research assistant support exploration of recorded scientific evidence. They do not establish antimicrobial potency, safety or clinical effectiveness.")
 
 
 # -----------------------------------------------------------------------------
@@ -1098,11 +920,10 @@ def show_about() -> None:
     show_html(
         '<div class="ph-steps">'
         f'<div class="ph-step"><div class="ph-step-no">01 / STRUCTURE</div><div class="ph-step-ico">{icon("network")}</div><div class="ph-step-title">Neo4j knowledge graph</div><div class="ph-step-text">Entities and relationships with recorded evidence fields and source identifiers.</div></div>'
-        f'<div class="ph-step"><div class="ph-step-no">02 / PRIORITIZE</div><div class="ph-step-ico">{icon("activity")}</div><div class="ph-step-title">Evidence-priority scoring</div><div class="ph-step-text">An exploratory research index for 137 scored compounds, based on mapped evidence categories and record breadth.</div></div>'
+        f'<div class="ph-step"><div class="ph-step-no">02 / MAP EVIDENCE</div><div class="ph-step-ico">{icon("activity")}</div><div class="ph-step-title">Evidence-linked relationships</div><div class="ph-step-text">Recorded compound, pathogen and molecular-target associations with available source details.</div></div>'
         f'<div class="ph-step"><div class="ph-step-no">03 / EXPLAIN</div><div class="ph-step-ico">{icon("spark")}</div><div class="ph-step-title">Evidence-grounded GraphRAG</div><div class="ph-step-text">Question-specific Neo4j retrieval, answerability screening and optional LLM interpretation.</div></div>'
         '</div>'
     )
-    show_scoring_guide()
     section_head("INTERPRETATION", "What this system can — and cannot — establish", "Scientific caution is a design requirement, not a footnote.")
     a, b = st.columns(2, gap="medium")
     with a:
@@ -1124,13 +945,12 @@ def show_about() -> None:
         "matching do not constitute independent validation of every individual claim."
     )
     st.markdown("#### Computational stack")
-    st.markdown("**Streamlit** interface · **Neo4j AuraDB** graph storage · **Groq** optional hosted explanations · **PyVis** interactive network · **Evidence Priority Score (exploratory research index)**")
+    st.markdown("**Streamlit** interface · **Neo4j AuraDB** graph storage · **Groq** optional hosted explanations · **PyVis** interactive network · **GraphRAG** evidence retrieval")
     caution("The prototype is intended for academic research and demonstration, not clinical or therapeutic decision-making.")
 
 
 PAGE_HANDLERS = {
     "overview": show_overview,
-    "rankings": show_rankings,
     "graph": show_graph,
     "assistant": show_assistant,
     "about": show_about,
@@ -1139,5 +959,5 @@ PAGE_HANDLERS.get(st.session_state.current_page, show_overview)()
 
 show_html(
     '<div class="ph-footer"><span>PHYTOGRAPH RESEARCH ATLAS &nbsp; / &nbsp; ANTI-AMR PHYTOCHEMICAL DISCOVERY</span>'
-    '<span>Neo4j · Evidence Priority Scores · AI-assisted Research</span></div>'
+    '<span>Neo4j · Interactive Knowledge Graph · GraphRAG Research</span></div>'
 )

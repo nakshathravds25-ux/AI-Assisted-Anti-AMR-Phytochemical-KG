@@ -186,49 +186,30 @@ For supported compound-list questions, graph-derived results can be returned dir
 
 ## 5. Application Features
 
-### 5.1 Research Dashboard
+The Streamlit application retains four sections. The Compound Explorer has been removed from the application navigation; the archived ranking CSV remains in the repository for project traceability.
 
-The dashboard provides an overview of the research knowledge graph.
+### 5.1 Overview Dashboard
+
+The Overview page introduces the PhytoGraph workflow and summarizes the connected dataset.
 
 It includes:
 
-- Total medicinal plant count
-- Total phytochemical count
-- Pathogen and resistance-record count
-- Molecular target count
-- Knowledge graph relationship statistics
-- Research workflow information
-- Evidence interpretation guidance
+- Medicinal plant, phytochemical, pathogen/resistance and molecular-target counts
+- Total graph nodes and relationships
+- Quick navigation to the Knowledge Graph and Evidence Research Assistant
+- A concise explanation of the research workflow
 
-### 5.2 Evidence-Prioritized Compound Explorer
-
-The Compound Explorer provides access to the current evidence-prioritization dataset.
-
-Features include:
-
-- Ranked compound directory
-- Compound search within the ranked subset
-- Evidence Priority Score display
-- Comparison of research candidates
-- Supporting evidence indicators
-- Publication and pathogen coverage information
-- Caution flags and evidence interpretation
-
-The application currently displays rankings for 137 compounds.
-
-The remaining compounds are not automatically classified as inactive. They are simply not included in the current scoring export.
-
-### 5.3 Interactive Knowledge Graph Explorer
+### 5.2 Interactive Knowledge Graph Explorer
 
 The graph explorer supports two visualization modes:
 
 **Full Knowledge Graph**
 
-Provides an interactive view of the connected graph, with filtering options for node categories and relationship types.
+Provides an interactive view of the connected graph, with filters for entity categories and relationship types.
 
 **Search by Compound**
 
-Allows users to search the complete registered compound collection, including compounds that are not part of the 137-compound ranking export.
+Allows users to search the complete registered compound collection and inspect the selected compound's directly connected plants, molecular targets and pathogen records.
 
 Graph exploration features include:
 
@@ -237,18 +218,19 @@ Graph exploration features include:
 - Search for graph nodes
 - Relationship-type filtering
 - Node-category filtering
-- Graph navigation and zooming
+- Graph navigation, zooming and panning
 - Interactive node selection and movement
 - Relationship labels and evidence details
-- Resetting graph filters
+- Neighbour highlighting and neighbourhood isolation
+- Resetting graph filters and restoring the full graph
 
 The visualization uses PyVis and retrieves graph information from Neo4j.
 
-**Important:** Graph layout, node positions, edge lengths, and visual proximity are visualization properties. They do not represent biological distance, interaction strength, or evidence confidence.
+**Important:** Graph layout, node positions, edge lengths and visual proximity are visualization properties. They do not represent biological distance, interaction strength or evidence confidence.
 
-### 5.4 AI-Assisted Research Assistant
+### 5.3 GraphRAG Evidence Research Assistant
 
-The AI Research Assistant accepts scientific questions about phytochemicals, pathogens, and molecular targets.
+The research assistant accepts scientific questions about phytochemicals, pathogens and molecular targets. It retrieves relevant graph records from Neo4j before producing an evidence-oriented response.
 
 Example questions:
 
@@ -264,71 +246,23 @@ The research assistant can provide:
 - Graph-derived compound and target information
 - Retrieved evidence relationships
 - Publication and source references where available
-- AI-assisted scientific explanations
+- Optional AI-assisted scientific explanations
 - Insufficient-evidence responses
 - Requests for additional source verification
 
 The system is designed to distinguish recorded graph associations from stronger experimental or clinical claims.
 
----
+### 5.4 About the Research
 
-## 6. Evidence-Based Compound Prioritization
+The About page describes the system architecture, evidence interpretation notes, technical stack, intended use and scientific limitations.
 
-PhytoGraph uses an exploratory **Evidence Priority Score (0–100)** to organize a subset of phytochemical compounds according to mapped research evidence.
+## 6. Archived Ranking Dataset (Not Used in the Current Application)
 
-The scoring framework considers five evidence dimensions.
+The repository retains `ranking.py` and `data/V3_EVIDENCE_PRIORITIZATION_137.csv` as project development artifacts. The current Streamlit application does not load or display this ranking dataset.
 
-### 6.1 Scoring Components
+The CSV contains 137 prepared compound profiles and legacy precomputed fields, including `V3_Heuristic_Score`, `Activity_Grade`, `Target_Grade` and `Specificity_Proxy`. The executable scoring-generation procedure that defines the grade assignments, normalization and aggregation is not included in this repository snapshot. Consequently, the legacy numerical score cannot be independently reproduced from the current application code.
 
-| Evidence Dimension | Maximum Points |
-|---|---:|
-| Pathogen-study evidence grade | 30 |
-| Molecular-target evidence grade | 25 |
-| Resistance-specificity information | 20 |
-| Distinct research source breadth | 15 |
-| Pathogen-record breadth | 10 |
-| **Total** | **100** |
-
-### 6.2 Interpretation
-
-The score is intended to identify compounds that may warrant further research based on the available mapped evidence.
-
-A higher score indicates greater research priority under the current heuristic framework.
-
-It does **not** represent:
-
-- A percentage of antimicrobial effectiveness
-- A probability of successful treatment
-- A measure of drug potency
-- A probability of physical target binding
-- A measure of human safety
-- A prediction of clinical success
-
-The component grades are internal evidence-category values, not percentages of bacterial killing or probabilities of molecular interaction.
-
-Publication counts are provisional deduplicated estimates and may require manual verification. Multiple graph relationships may originate from the same scientific publication.
-
-A zero caution-flag count does not mean that a compound is proven safe or fully evidence-verified.
-
-### 6.3 Ranking Coverage
-
-| Metric | Count |
-|---|---:|
-| Total registered compounds | 425 |
-| Compounds included in the current ranking export | 137 |
-| Compounds without a score in the current export | 288 |
-
-The 288 unranked compounds remain part of the registered compound collection. Their absence from the ranking export does not establish a lack of biological activity.
-
-The ranking data is stored in:
-
-`data/V3_EVIDENCE_PRIORITIZATION_137.csv`
-
-The application displays the score using the name **Evidence Priority Score**.
-
-The scoring framework is exploratory and has not been clinically validated.
-
----
+The archived export is retained for traceability only. It must not be presented as a validated antimicrobial efficacy, binding, safety or clinical prediction model. The 288 registered compounds absent from this export are not thereby classified as inactive.
 
 ## 7. Scientific Answerability Safeguards
 
