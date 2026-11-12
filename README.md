@@ -186,9 +186,20 @@ For supported compound-list questions, graph-derived results can be returned dir
 
 ## 5. Application Features
 
-The deployed prototype focuses on two primary application areas.
+The Streamlit application retains four sections. The Compound Explorer has been removed from the application navigation; the archived ranking CSV remains in the repository for project traceability.
 
-### 5.1 Interactive Knowledge Graph Explorer
+### 5.1 Overview Dashboard
+
+The Overview page introduces the PhytoGraph workflow and summarizes the connected dataset.
+
+It includes:
+
+- Medicinal plant, phytochemical, pathogen/resistance and molecular-target counts
+- Total graph nodes and relationships
+- Quick navigation to the Knowledge Graph and Evidence Research Assistant
+- A concise explanation of the research workflow
+
+### 5.2 Interactive Knowledge Graph Explorer
 
 The graph explorer supports two visualization modes:
 
@@ -217,7 +228,7 @@ The visualization uses PyVis and retrieves graph information from Neo4j.
 
 **Important:** Graph layout, node positions, edge lengths and visual proximity are visualization properties. They do not represent biological distance, interaction strength or evidence confidence.
 
-### 5.2 GraphRAG Evidence Research Assistant
+### 5.3 GraphRAG Evidence Research Assistant
 
 The research assistant accepts scientific questions about phytochemicals, pathogens and molecular targets. It retrieves relevant graph records from Neo4j before producing an evidence-oriented response.
 
@@ -240,6 +251,10 @@ The research assistant can provide:
 - Requests for additional source verification
 
 The system is designed to distinguish recorded graph associations from stronger experimental or clinical claims.
+
+### 5.4 About the Research
+
+The About page describes the system architecture, evidence interpretation notes, technical stack, intended use and scientific limitations.
 
 ## 6. Archived Ranking Dataset (Not Used in the Current Application)
 
