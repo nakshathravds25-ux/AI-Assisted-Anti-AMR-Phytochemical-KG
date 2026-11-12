@@ -827,7 +827,22 @@ def build_graph_html(compound_id: str, max_plants: int = 20) -> str | None:
     return _wrap_html(net.generate_html(), counts, full_graph=False)
 
 
-def _kind_from_labels(labels) -> str | None:
+def _kind_from_labels(labels, node: dict | None = None) -> str | None:
+    """Resolve the semantic entity type from its identifying properties first.
+
+    Some imported Neo4j nodes may carry an unexpected or legacy label. The
+    entity-specific ID/name properties are a more reliable discriminator for
+    rendering; labels remain the fallback for older or sparse records.
+    """
+    node = node or {}
+    for kind in ALLOWED_NODE_TYPES:
+        field = NODE_ID_FIELDS[kind]
+        if node.get(field) is not None and str(node.get(field)).strip():
+            return kind
+    for kind in ALLOWED_NODE_TYPES:
+        field = NODE_NAME_FIELDS[kind]
+        if node.get(field) is not None and str(node.get(field)).strip():
+            return kind
     for kind in ALLOWED_NODE_TYPES:
         if kind in (labels or []):
             return kind
@@ -885,7 +900,7 @@ def build_full_graph_html(
     node_seen = set()
 
     for item in graph["nodes"]:
-        kind = _kind_from_labels(item.get("labels"))
+        kind = _kind_from_labels(item.get("labels"), item.get("node"))
         node = item.get("node") or {}
         if kind is None or not isinstance(node, dict):
             continue
@@ -913,8 +928,8 @@ def build_full_graph_html(
 
     edge_seen = set()
     for item in graph["edges"]:
-        source_kind = _kind_from_labels(item.get("source_labels"))
-        target_kind = _kind_from_labels(item.get("target_labels"))
+        source_kind = _kind_from_labels(item.get("source_labels"), item.get("source_node"))
+        target_kind = _kind_from_labels(item.get("target_labels"), item.get("target_node"))
         source_node = item.get("source_node") or {}
         target_node = item.get("target_node") or {}
         if not source_kind or not target_kind:
