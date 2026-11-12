@@ -357,9 +357,14 @@ def _wrap_html(html: str, counts: dict, *, full_graph: bool = False) -> str:
       .vis-tooltip { border:1px solid #D5E4D7!important; border-radius:11px!important; background:#FFFFFF!important;
         color:#284D39!important; box-shadow:0 12px 30px rgba(28,64,40,.09)!important; padding:12px!important;
         max-width:440px; white-space:normal!important; overflow-wrap:anywhere; }
-      .pg-search { position:absolute; z-index:50; top:18px; right:20px; width:min(330px, calc(100% - 180px));
+      .pg-search { position:absolute; z-index:50; top:18px; right:20px; width:min(470px, calc(100% - 180px));
         box-sizing:border-box; padding:12px; border:1px solid #DCE8DD; border-radius:13px;
         background:rgba(255,255,255,.97); box-shadow:0 6px 25px rgba(29,73,46,.08); }
+      .pg-search-tools { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+      .pg-search-tools button { border:1px solid #D5E3D7; border-radius:8px; padding:7px 9px;
+        background:#F4F8F3; color:#315B43; font-size:10px; font-weight:650; cursor:pointer; }
+      .pg-search-tools button:hover { background:#E8F1E7; }
+      .pg-search-tools button.pg-primary { background:#285C49; border-color:#285C49; color:#fff; }
       .pg-search-label { display:block; margin:0 0 7px; color:#627D6D; font-size:9px;
         font-weight:700; letter-spacing:.12em; }
       .pg-search-row { display:flex; gap:6px; }
@@ -373,7 +378,7 @@ def _wrap_html(html: str, counts: dict, *, full_graph: bool = False) -> str:
       .pg-search-status { flex:1; color:#718677; font-size:10px; line-height:1.35; }
       @media(max-width:600px) {
         .pg-legend { top:9px;left:9px;padding:10px;min-width:105px; }
-        .pg-search { top:9px;right:9px;width:min(270px, calc(100% - 145px));padding:8px; }
+        .pg-search { top:9px;right:9px;width:min(330px, calc(100% - 145px));padding:8px; }
         .pg-search button { padding:7px 8px; }
         .pg-hint { left:9px;right:auto;bottom:42px; }
         .pg-note { left:9px;bottom:8px;max-width:90%; }
@@ -387,77 +392,220 @@ def _wrap_html(html: str, counts: dict, *, full_graph: bool = False) -> str:
     )
     search_panel = '''
       <div class="pg-search">
-        <label class="pg-search-label" for="pg-node-search">FIND A NODE</label>
+        <label class="pg-search-label" for="pg-node-search">FIND & EXPLORE ANY NODE</label>
         <div class="pg-search-row">
-          <input id="pg-node-search" type="search" placeholder="Name, organism, target or ID" autocomplete="off">
-          <button id="pg-node-find" type="button">Find</button>
+          <input id="pg-node-search" type="search" placeholder="Plant, compound, pathogen, target or ID" autocomplete="off">
+          <button id="pg-node-find" class="pg-primary" type="button">Find</button>
+          <button id="pg-node-next" type="button">Next</button>
+        </div>
+        <div class="pg-search-tools">
+          <button id="pg-node-focus" type="button">Focus selected</button>
+          <button id="pg-node-neighbours" type="button">Highlight neighbours</button>
+          <button id="pg-node-isolate" type="button">Isolate neighbourhood</button>
+          <button id="pg-node-show-all" type="button">Show all</button>
+          <button id="pg-node-fit" type="button">Fit graph</button>
         </div>
         <div class="pg-search-actions">
-          <span id="pg-search-status" class="pg-search-status" aria-live="polite">Search the nodes currently shown</span>
-          <button id="pg-node-next" type="button">Next</button>
-          <button id="pg-node-clear" type="button">Clear</button>
+          <span id="pg-search-status" class="pg-search-status" aria-live="polite">Search the loaded graph, then explore its connections.</span>
+          <button id="pg-node-clear" type="button">Clear search</button>
         </div>
       </div>
     '''
-    overlay = (
-        _legend_html(counts)
-        + search_panel
-        + f'<div class="pg-hint">{hint}</div>'
-        + '<div class="pg-note">Node positions and edge lengths are visual layout only; they do not represent biological distance or interaction strength.</div>'
-    )
     search_script = r'''
     <script>
     (function () {
-      const input = document.getElementById("pg-node-search");
-      const findButton = document.getElementById("pg-node-find");
-      const nextButton = document.getElementById("pg-node-next");
-      const clearButton = document.getElementById("pg-node-clear");
-      const status = document.getElementById("pg-search-status");
+      // Use the explicitly exposed PyVis instance, not an assumed lexical global.
+      const network = window.__pgNetwork || window.network;
+      const byId = (id) => document.getElementById(id);
+      const input = byId("pg-node-search");
+      const findButton = byId("pg-node-find");
+      const nextButton = byId("pg-node-next");
+      const clearButton = byId("pg-node-clear");
+      const focusButton = byId("pg-node-focus");
+      const neighboursButton = byId("pg-node-neighbours");
+      const isolateButton = byId("pg-node-isolate");
+      const showAllButton = byId("pg-node-show-all");
+      const fitButton = byId("pg-node-fit");
+      const status = byId("pg-search-status");
       if (!input || !findButton || !nextButton || !clearButton || !status) return;
 
       let matches = [];
       let matchIndex = 0;
+      let selectedId = null;
+      const originalNodeStyles = new Map();
+      const originalEdgeStyles = new Map();
 
-      function getNodeStore() {
-        return (typeof network !== "undefined" && network && network.body && network.body.data)
-          ? network.body.data.nodes : null;
+      function getStores() {
+        if (!network) return null;
+        // PyVis exposes its DataSets as globals; prefer those public DataSets,
+        // with the network body as a fallback for different vis-network versions.
+        const nodeStore = window.nodes || (network.body && network.body.data && network.body.data.nodes);
+        const edgeStore = window.edges || (network.body && network.body.data && network.body.data.edges);
+        if (!nodeStore || !edgeStore || typeof nodeStore.get !== "function" ||
+            typeof nodeStore.update !== "function" || typeof edgeStore.get !== "function" ||
+            typeof edgeStore.update !== "function") return null;
+        return { nodes: nodeStore, edges: edgeStore };
       }
 
-      function focusMatch() {
-        if (!matches.length || typeof network === "undefined" || !network) return;
-        const item = matches[matchIndex];
-        network.selectNodes([item.id], true);
-        network.focus(item.id, {
-          scale: 1.35,
-          animation: { duration: 550, easingFunction: "easeInOutQuad" }
+      function getSelectedNode() {
+        const stores = getStores();
+        if (!stores) return null;
+        if (selectedId !== null) {
+          const selected = stores.nodes.get(selectedId);
+          if (selected) return selected;
+        }
+        const ids = network.getSelectedNodes();
+        if (ids && ids.length) {
+          selectedId = ids[0];
+          return stores.nodes.get(selectedId);
+        }
+        return null;
+      }
+
+      function focusNode(node) {
+        if (!node || !network) return;
+        selectedId = node.id;
+        network.selectNodes([node.id], true);
+        network.focus(node.id, {
+          scale: 1.8,
+          offset: { x: 0, y: 0 },
+          animation: { duration: 650, easingFunction: "easeInOutQuad" }
         });
-        status.textContent = "Match " + (matchIndex + 1) + " of " + matches.length +
-          ": " + (item.label || item.id);
+        status.textContent = "Focused: " + (node.label || node.id) + " · " + (node.group || "Entity");
       }
 
       function findMatches() {
         const query = input.value.trim().toLowerCase();
-        const store = getNodeStore();
-        if (!store) {
-          status.textContent = "Graph is still loading. Try again in a moment.";
+        const stores = getStores();
+        if (!stores) {
+          status.textContent = "Graph is still loading. Try again shortly.";
           return;
         }
         if (!query) {
-          status.textContent = "Enter a name or ID to search.";
+          status.textContent = "Enter a node name or ID.";
           return;
         }
-        matches = store.get().filter(function (item) {
+        matches = stores.nodes.get().filter(function (item) {
           const searchable = [item.label, item.title, item.id, item.group]
             .filter(Boolean).join(" ").toLowerCase();
           return searchable.includes(query);
         });
         matchIndex = 0;
         if (!matches.length) {
+          selectedId = null;
           network.unselectAll();
-          status.textContent = "No matches in the currently displayed graph.";
+          status.textContent = "No match in this loaded graph. Check the entity filters and reload.";
           return;
         }
-        focusMatch();
+        focusNode(matches[matchIndex]);
+        if (matches.length > 1) {
+          status.textContent += " · Match 1 of " + matches.length + " (use Next)";
+        }
+      }
+
+      function getNeighbourIds(nodeId) {
+        const stores = getStores();
+        const neighbours = new Set([nodeId]);
+        if (!stores) return neighbours;
+        stores.edges.get().forEach(function (edge) {
+          if (edge.from === nodeId) neighbours.add(edge.to);
+          if (edge.to === nodeId) neighbours.add(edge.from);
+        });
+        return neighbours;
+      }
+
+      function rememberStyles(stores) {
+        stores.nodes.get().forEach(function (node) {
+          if (!originalNodeStyles.has(node.id)) {
+            originalNodeStyles.set(node.id, {
+              color: node.color, font: node.font, hidden: node.hidden
+            });
+          }
+        });
+        stores.edges.get().forEach(function (edge) {
+          if (!originalEdgeStyles.has(edge.id)) {
+            originalEdgeStyles.set(edge.id, {
+              color: edge.color, hidden: edge.hidden, width: edge.width
+            });
+          }
+        });
+      }
+
+      function restoreAll() {
+        const stores = getStores();
+        if (!stores) return;
+        rememberStyles(stores);
+        const nodeUpdates = stores.nodes.get().map(function (node) {
+          const original = originalNodeStyles.get(node.id) || {};
+          const update = { id: node.id, hidden: original.hidden === true };
+          if (original.color !== undefined) update.color = original.color;
+          if (original.font !== undefined) update.font = original.font;
+          return update;
+        });
+        const edgeUpdates = stores.edges.get().map(function (edge) {
+          const original = originalEdgeStyles.get(edge.id) || {};
+          const update = { id: edge.id, hidden: original.hidden === true };
+          if (original.color !== undefined) update.color = original.color;
+          if (original.width !== undefined) update.width = original.width;
+          return update;
+        });
+        // One batch update per DataSet instead of thousands of individual redraws.
+        stores.nodes.update(nodeUpdates);
+        stores.edges.update(edgeUpdates);
+        network.redraw();
+      }
+
+      function explore(mode) {
+        const stores = getStores();
+        const selected = getSelectedNode();
+        if (!stores || !selected) {
+          status.textContent = "Find or click a node first.";
+          return;
+        }
+        rememberStyles(stores);
+        const neighbours = getNeighbourIds(selected.id);
+        const isIsolate = mode === "isolate";
+
+        const nodeUpdates = stores.nodes.get().map(function (node) {
+          const keep = neighbours.has(node.id);
+          const original = originalNodeStyles.get(node.id) || {};
+          if (isIsolate) {
+            return { id: node.id, hidden: !keep };
+          }
+          if (!keep) {
+            return {
+              id: node.id,
+              color: { background: "#E8ECE9", border: "#D3DBD5", highlight: { background: "#E8ECE9", border: "#AEBBB2" } },
+              font: { color: "#A5B0A8", size: 9 }
+            };
+          }
+          const update = { id: node.id, hidden: false };
+          if (original.color !== undefined) update.color = original.color;
+          if (original.font !== undefined) update.font = original.font;
+          return update;
+        });
+
+        const edgeUpdates = stores.edges.get().map(function (edge) {
+          const direct = edge.from === selected.id || edge.to === selected.id;
+          const original = originalEdgeStyles.get(edge.id) || {};
+          if (isIsolate) return { id: edge.id, hidden: !direct };
+          return {
+            id: edge.id, hidden: false,
+            color: direct ? (original.color || "#6F927B") : "#E5EAE6",
+            width: direct ? 2.8 : 0.7
+          };
+        });
+
+        // Batch updates: this is critical for large graphs.
+        stores.nodes.update(nodeUpdates);
+        stores.edges.update(edgeUpdates);
+        network.redraw();
+
+        focusNode(selected);
+        status.textContent = (isIsolate ? "Isolated" : "Highlighted") + " neighbourhood of " +
+          (selected.label || selected.id) + " · " + (neighbours.size - 1) +
+          " direct neighbours. Use Show all to restore.";
+        if (isIsolate) network.fit({ nodes: Array.from(neighbours), animation: { duration: 500 } });
       }
 
       findButton.addEventListener("click", findMatches);
@@ -467,24 +615,77 @@ def _wrap_html(html: str, counts: dict, *, full_graph: bool = False) -> str:
       nextButton.addEventListener("click", function () {
         if (!matches.length) return;
         matchIndex = (matchIndex + 1) % matches.length;
-        focusMatch();
+        focusNode(matches[matchIndex]);
+        if (matches.length > 1) status.textContent += " · Match " + (matchIndex + 1) + " of " + matches.length;
       });
       clearButton.addEventListener("click", function () {
         input.value = "";
         matches = [];
         matchIndex = 0;
-        if (typeof network !== "undefined" && network) network.unselectAll();
-        status.textContent = "Search the nodes currently shown";
+        selectedId = null;
+        if (network) network.unselectAll();
+        restoreAll();
+        status.textContent = "Search cleared. The complete graph is visible.";
+      });
+      if (focusButton) focusButton.addEventListener("click", function () {
+        const selected = getSelectedNode();
+        if (!selected) { status.textContent = "Find or click a node first."; return; }
+        restoreAll();
+        focusNode(selected);
+      });
+      if (neighboursButton) neighboursButton.addEventListener("click", function () { explore("highlight"); });
+      if (isolateButton) isolateButton.addEventListener("click", function () { explore("isolate"); });
+      if (showAllButton) showAllButton.addEventListener("click", function () {
+        restoreAll();
+        const selected = getSelectedNode();
+        if (selected) focusNode(selected);
+        else network.fit({ animation: { duration: 500 } });
+        status.textContent = "Complete graph restored.";
+      });
+      if (fitButton) fitButton.addEventListener("click", function () {
+        restoreAll();
+        network.fit({ animation: { duration: 500 } });
+        status.textContent = "Fitting the complete graph to the canvas.";
       });
 
-      if (typeof network !== "undefined" && network && typeof network.once === "function") {
+      if (network && typeof network.on === "function") {
+        network.on("click", function (params) {
+          if (params.nodes && params.nodes.length) {
+            const stores = getStores();
+            const clicked = stores && stores.nodes.get(params.nodes[0]);
+            if (clicked) {
+              selectedId = clicked.id;
+              input.value = clicked.label || clicked.id;
+              status.textContent = "Selected: " + (clicked.label || clicked.id) + " · Choose a neighbourhood action.";
+            }
+          }
+        });
         network.once("stabilizationIterationsDone", function () {
           network.setOptions({ physics: { enabled: false } });
+          network.fit({ animation: { duration: 400 } });
         });
       }
     })();
     </script>
     '''
+    # Explicitly expose the PyVis Network instance for the injected controls.
+    html, exposed_count = re.subn(
+        r"(\bnetwork\s*=\s*new\s+vis\.Network\s*\([^;]*?\)\s*;)",
+        r"\1\nwindow.network = network;\nwindow.__pgNetwork = network;",
+        html,
+        count=1,
+        flags=re.DOTALL,
+    )
+    # Fail loudly rather than silently leaving non-functional controls.
+    if exposed_count == 0:
+        raise RuntimeError("Could not locate the PyVis network constructor; controls were not injected.")
+
+    overlay = (
+        _legend_html(counts)
+        + search_panel
+        + f'<div class="pg-hint">{hint}</div>'
+        + '<div class="pg-note">Node positions and edge lengths are visual layout only; they do not represent biological distance or interaction strength.</div>'
+    )
     html = re.sub(
         r"</head\s*>",
         lambda match: css + match.group(0),
@@ -523,7 +724,7 @@ def _configure_network(net: Network, *, full_graph: bool = False):
           },
           "physics": {
             "enabled":true,"solver":"barnesHut",
-            "barnesHut":{"gravitationalConstant":-9000,"centralGravity":0.12,"springLength":85,"springConstant":0.025,"damping":0.18,"avoidOverlap":0.35},
+            "barnesHut":{"gravitationalConstant":-15000,"centralGravity":0.08,"springLength":145,"springConstant":0.018,"damping":0.22,"avoidOverlap":0.75},
             "stabilization":{"enabled":true,"iterations":220,"updateInterval":30}
           }
         }
