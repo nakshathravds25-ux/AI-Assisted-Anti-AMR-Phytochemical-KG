@@ -186,51 +186,19 @@ For supported compound-list questions, graph-derived results can be returned dir
 
 ## 5. Application Features
 
-### 5.1 Research Dashboard
+The deployed prototype focuses on two primary application areas.
 
-The dashboard provides an overview of the research knowledge graph.
-
-It includes:
-
-- Total medicinal plant count
-- Total phytochemical count
-- Pathogen and resistance-record count
-- Molecular target count
-- Knowledge graph relationship statistics
-- Research workflow information
-- Evidence interpretation guidance
-
-### 5.2 Evidence Coverage Explorer
-
-The Evidence Coverage Explorer provides access to the current mapped compound evidence export. It foregrounds the evidence fields and record coverage; it does not recalculate the stored V3 heuristic score.
-
-Features include:
-
-- Searchable directory of mapped compound evidence profiles
-- Filtering by recorded evidence coverage (both evidence types, pathogen-only, or target-only)
-- Comparison of antimicrobial and target evidence grades
-- Publication, pathogen-record and target-connection coverage
-- Evidence caution flags
-- Optional inspection of the legacy precomputed V3 score for traceability
-- Supporting evidence indicators
-- Publication and pathogen coverage information
-- Caution flags and evidence interpretation
-
-The current export contains 137 mapped compound profiles.
-
-The remaining compounds are not automatically classified as inactive. They are simply not included in the current scoring export.
-
-### 5.3 Interactive Knowledge Graph Explorer
+### 5.1 Interactive Knowledge Graph Explorer
 
 The graph explorer supports two visualization modes:
 
 **Full Knowledge Graph**
 
-Provides an interactive view of the connected graph, with filtering options for node categories and relationship types.
+Provides an interactive view of the connected graph, with filters for entity categories and relationship types.
 
 **Search by Compound**
 
-Allows users to search the complete registered compound collection, including compounds that are not part of the 137-compound ranking export.
+Allows users to search the complete registered compound collection and inspect the selected compound's directly connected plants, molecular targets and pathogen records.
 
 Graph exploration features include:
 
@@ -239,18 +207,19 @@ Graph exploration features include:
 - Search for graph nodes
 - Relationship-type filtering
 - Node-category filtering
-- Graph navigation and zooming
+- Graph navigation, zooming and panning
 - Interactive node selection and movement
 - Relationship labels and evidence details
-- Resetting graph filters
+- Neighbour highlighting and neighbourhood isolation
+- Resetting graph filters and restoring the full graph
 
 The visualization uses PyVis and retrieves graph information from Neo4j.
 
-**Important:** Graph layout, node positions, edge lengths, and visual proximity are visualization properties. They do not represent biological distance, interaction strength, or evidence confidence.
+**Important:** Graph layout, node positions, edge lengths and visual proximity are visualization properties. They do not represent biological distance, interaction strength or evidence confidence.
 
-### 5.4 AI-Assisted Research Assistant
+### 5.2 GraphRAG Evidence Research Assistant
 
-The AI Research Assistant accepts scientific questions about phytochemicals, pathogens, and molecular targets.
+The research assistant accepts scientific questions about phytochemicals, pathogens and molecular targets. It retrieves relevant graph records from Neo4j before producing an evidence-oriented response.
 
 Example questions:
 
@@ -266,61 +235,19 @@ The research assistant can provide:
 - Graph-derived compound and target information
 - Retrieved evidence relationships
 - Publication and source references where available
-- AI-assisted scientific explanations
+- Optional AI-assisted scientific explanations
 - Insufficient-evidence responses
 - Requests for additional source verification
 
 The system is designed to distinguish recorded graph associations from stronger experimental or clinical claims.
 
----
+## 6. Archived Ranking Dataset (Not Used in the Current Application)
 
-## 6. Evidence Coverage and Legacy Prioritization Export
+The repository retains `ranking.py` and `data/V3_EVIDENCE_PRIORITIZATION_137.csv` as project development artifacts. The current Streamlit application does not load or display this ranking dataset.
 
-The current application uses the **Evidence Coverage Explorer** to compare the contents of the prepared compound-evidence export. It displays recorded evidence categories, internal grade fields, provisional source counts, pathogen coverage, target connections and caution flags.
+The CSV contains 137 prepared compound profiles and legacy precomputed fields, including `V3_Heuristic_Score`, `Activity_Grade`, `Target_Grade` and `Specificity_Proxy`. The executable scoring-generation procedure that defines the grade assignments, normalization and aggregation is not included in this repository snapshot. Consequently, the legacy numerical score cannot be independently reproduced from the current application code.
 
-The ranking module (`ranking.py`) loads `data/V3_EVIDENCE_PRIORITIZATION_137.csv`. It does not calculate the V3 score at runtime.
-
-### 6.1 Documented Scoring Dimensions
-
-The earlier project documentation describes the following intended maximum weight allocations:
-
-| Evidence Dimension | Documented Maximum |
-|---|---:|
-| Pathogen-study evidence grade | 30 |
-| Molecular-target evidence grade | 25 |
-| Resistance-specificity information | 20 |
-| Distinct research source breadth | 15 |
-| Pathogen-record breadth | 10 |
-| **Total** | **100** |
-
-**Reproducibility limitation:** this repository snapshot does not include the executable scoring-generation procedure that defines the component-grade assignment rules, normalization, conversion to points, and aggregation into `V3_Heuristic_Score`. The stored value (for example, 78.91 for Eugenol) therefore cannot currently be independently reproduced from the application code. The application retains the score only as a legacy precomputed field for traceability; it is not used to filter or sort profiles in the Evidence Coverage Explorer.
-
-### 6.2 Evidence Field Interpretation
-
-- `Evidence_Coverage` indicates whether the export contains pathogen-side evidence, target-side evidence, or both.
-- `Activity_Grade` and `Target_Grade` are internal values supplied in the export. They are not percentages of bacterial killing or probabilities of physical binding.
-- `Specificity_Proxy` is a resistance-specificity proxy field. Its precise construction is not defined by the executable code in this repository.
-- Publication counts are provisional deduplicated estimates and may require manual verification.
-- Pathogen and target link counts describe recorded graph relationships, not necessarily independent publications.
-- A zero caution-flag count does not establish safety or complete verification.
-
-### 6.3 Coverage
-
-| Metric | Count |
-|---|---:|
-| Total registered compounds | 425 |
-| Compound profiles in the current evidence export | 137 |
-| Compounds without a profile in the current export | 288 |
-
-The 288 compounds absent from the export remain part of the registered compound collection. Their absence does not establish a lack of biological activity.
-
-The data is stored in:
-
-`data/V3_EVIDENCE_PRIORITIZATION_137.csv`
-
-The prototype's evidence coverage is intended to support literature-oriented exploration. It is not a clinical prediction or therapeutic decision tool.
-
----
+The archived export is retained for traceability only. It must not be presented as a validated antimicrobial efficacy, binding, safety or clinical prediction model. The 288 registered compounds absent from this export are not thereby classified as inactive.
 
 ## 7. Scientific Answerability Safeguards
 
