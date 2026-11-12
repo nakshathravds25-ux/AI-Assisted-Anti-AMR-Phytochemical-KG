@@ -839,5 +839,5 @@ PAGE_HANDLERS.get(st.session_state.current_page, show_graph)()
 
 show_html(
     '<div class="ph-footer"><span>PHYTOGRAPH RESEARCH ATLAS &nbsp; / &nbsp; ANTI-AMR PHYTOCHEMICAL DISCOVERY</span>'
-    '<span>Neo4j · Evidence Priority Scores · AI-assisted Research</span></div>'
+    '<span>Neo4j · Interactive Knowledge Graph · GraphRAG Research</span></div>'
 )
