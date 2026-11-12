@@ -922,7 +922,6 @@ def build_full_graph_html(
             size={"Plant": 11, "Compound": 13, "Target": 12, "Pathogen": 12}[kind],
             color=_node_style(kind),
             borderWidth=1.5,
-            group=kind,
             font={"color":"#3E5A4B","size":10,"face":"Arial","strokeWidth":2,"strokeColor":"#FAFCF9"},
         )
 
