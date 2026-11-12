@@ -200,21 +200,23 @@ It includes:
 - Research workflow information
 - Evidence interpretation guidance
 
-### 5.2 Evidence-Prioritized Compound Explorer
+### 5.2 Evidence Coverage Explorer
 
-The Compound Explorer provides access to the current evidence-prioritization dataset.
+The Evidence Coverage Explorer provides access to the current mapped compound evidence export. It foregrounds the evidence fields and record coverage; it does not recalculate the stored V3 heuristic score.
 
 Features include:
 
-- Ranked compound directory
-- Compound search within the ranked subset
-- Evidence Priority Score display
-- Comparison of research candidates
+- Searchable directory of mapped compound evidence profiles
+- Filtering by recorded evidence coverage (both evidence types, pathogen-only, or target-only)
+- Comparison of antimicrobial and target evidence grades
+- Publication, pathogen-record and target-connection coverage
+- Evidence caution flags
+- Optional inspection of the legacy precomputed V3 score for traceability
 - Supporting evidence indicators
 - Publication and pathogen coverage information
 - Caution flags and evidence interpretation
 
-The application currently displays rankings for 137 compounds.
+The current export contains 137 mapped compound profiles.
 
 The remaining compounds are not automatically classified as inactive. They are simply not included in the current scoring export.
 
@@ -272,15 +274,17 @@ The system is designed to distinguish recorded graph associations from stronger 
 
 ---
 
-## 6. Evidence-Based Compound Prioritization
+## 6. Evidence Coverage and Legacy Prioritization Export
 
-PhytoGraph uses an exploratory **Evidence Priority Score (0–100)** to organize a subset of phytochemical compounds according to mapped research evidence.
+The current application uses the **Evidence Coverage Explorer** to compare the contents of the prepared compound-evidence export. It displays recorded evidence categories, internal grade fields, provisional source counts, pathogen coverage, target connections and caution flags.
 
-The scoring framework considers five evidence dimensions.
+The ranking module (`ranking.py`) loads `data/V3_EVIDENCE_PRIORITIZATION_137.csv`. It does not calculate the V3 score at runtime.
 
-### 6.1 Scoring Components
+### 6.1 Documented Scoring Dimensions
 
-| Evidence Dimension | Maximum Points |
+The earlier project documentation describes the following intended maximum weight allocations:
+
+| Evidence Dimension | Documented Maximum |
 |---|---:|
 | Pathogen-study evidence grade | 30 |
 | Molecular-target evidence grade | 25 |
@@ -289,44 +293,32 @@ The scoring framework considers five evidence dimensions.
 | Pathogen-record breadth | 10 |
 | **Total** | **100** |
 
-### 6.2 Interpretation
+**Reproducibility limitation:** this repository snapshot does not include the executable scoring-generation procedure that defines the component-grade assignment rules, normalization, conversion to points, and aggregation into `V3_Heuristic_Score`. The stored value (for example, 78.91 for Eugenol) therefore cannot currently be independently reproduced from the application code. The application retains the score only as a legacy precomputed field for traceability; it is not used to filter or sort profiles in the Evidence Coverage Explorer.
 
-The score is intended to identify compounds that may warrant further research based on the available mapped evidence.
+### 6.2 Evidence Field Interpretation
 
-A higher score indicates greater research priority under the current heuristic framework.
+- `Evidence_Coverage` indicates whether the export contains pathogen-side evidence, target-side evidence, or both.
+- `Activity_Grade` and `Target_Grade` are internal values supplied in the export. They are not percentages of bacterial killing or probabilities of physical binding.
+- `Specificity_Proxy` is a resistance-specificity proxy field. Its precise construction is not defined by the executable code in this repository.
+- Publication counts are provisional deduplicated estimates and may require manual verification.
+- Pathogen and target link counts describe recorded graph relationships, not necessarily independent publications.
+- A zero caution-flag count does not establish safety or complete verification.
 
-It does **not** represent:
-
-- A percentage of antimicrobial effectiveness
-- A probability of successful treatment
-- A measure of drug potency
-- A probability of physical target binding
-- A measure of human safety
-- A prediction of clinical success
-
-The component grades are internal evidence-category values, not percentages of bacterial killing or probabilities of molecular interaction.
-
-Publication counts are provisional deduplicated estimates and may require manual verification. Multiple graph relationships may originate from the same scientific publication.
-
-A zero caution-flag count does not mean that a compound is proven safe or fully evidence-verified.
-
-### 6.3 Ranking Coverage
+### 6.3 Coverage
 
 | Metric | Count |
 |---|---:|
 | Total registered compounds | 425 |
-| Compounds included in the current ranking export | 137 |
-| Compounds without a score in the current export | 288 |
+| Compound profiles in the current evidence export | 137 |
+| Compounds without a profile in the current export | 288 |
 
-The 288 unranked compounds remain part of the registered compound collection. Their absence from the ranking export does not establish a lack of biological activity.
+The 288 compounds absent from the export remain part of the registered compound collection. Their absence does not establish a lack of biological activity.
 
-The ranking data is stored in:
+The data is stored in:
 
 `data/V3_EVIDENCE_PRIORITIZATION_137.csv`
 
-The application displays the score using the name **Evidence Priority Score**.
-
-The scoring framework is exploratory and has not been clinically validated.
+The prototype's evidence coverage is intended to support literature-oriented exploration. It is not a clinical prediction or therapeutic decision tool.
 
 ---
 
